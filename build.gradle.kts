@@ -1,63 +1,46 @@
 plugins {
 	kotlin("jvm") version "1.9.25"
-	kotlin("plugin.spring") version "1.9.25"
-	id("org.springframework.boot") version "3.4.5"
+	kotlin("plugin.spring") version "1.9.25" apply false
+	kotlin("plugin.jpa") version "1.9.25" apply false
+	id("org.springframework.boot") version "3.4.5" apply false
 	id("io.spring.dependency-management") version "1.1.7"
-	kotlin("plugin.jpa") version "1.9.25"
 }
-
-group = "com.hsmile"
-version = "0.0.1-SNAPSHOT"
 
 java {
 	toolchain {
-		languageVersion = JavaLanguageVersion.of(17)
+		languageVersion = JavaLanguageVersion.of(21)
 	}
 }
 
-configurations {
-	compileOnly {
-		extendsFrom(configurations.annotationProcessor.get())
+allprojects {
+	group = "com.hsmile.cheese321"
+	version = "0.0.1-SNAPSHOT"
+	repositories {
+		mavenCentral()
 	}
 }
 
-repositories {
-	mavenCentral()
-}
+subprojects {
+	apply(plugin = "org.jetbrains.kotlin.jvm")
+	apply(plugin = "io.spring.dependency-management")
 
-dependencies {
-	implementation("org.springframework.boot:spring-boot-starter-actuator")
-	implementation("org.springframework.boot:spring-boot-starter-data-jpa")
-	implementation("org.springframework.boot:spring-boot-starter-security")
-	implementation("org.springframework.boot:spring-boot-starter-validation")
-	implementation("org.springframework.boot:spring-boot-starter-web")
-	implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
-	implementation("org.jetbrains.kotlin:kotlin-reflect")
-	implementation("org.springframework.kafka:spring-kafka")
-	compileOnly("org.projectlombok:lombok")
-	developmentOnly("org.springframework.boot:spring-boot-devtools")
-	runtimeOnly("org.postgresql:postgresql")
-	annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")
-	annotationProcessor("org.projectlombok:lombok")
-	testImplementation("org.springframework.boot:spring-boot-starter-test")
-	testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
-	testImplementation("org.springframework.kafka:spring-kafka-test")
-	testImplementation("org.springframework.security:spring-security-test")
-	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
-}
-
-kotlin {
-	compilerOptions {
-		freeCompilerArgs.addAll("-Xjsr305=strict")
+	if (name == "api") {
+		apply(plugin = "org.springframework.boot")
+		apply(plugin = "org.jetbrains.kotlin.plugin.spring")
 	}
-}
 
-allOpen {
-	annotation("jakarta.persistence.Entity")
-	annotation("jakarta.persistence.MappedSuperclass")
-	annotation("jakarta.persistence.Embeddable")
-}
+	if (name == "domain") {
+		apply(plugin = "org.jetbrains.kotlin.plugin.jpa")
+	}
 
-tasks.withType<Test> {
-	useJUnitPlatform()
+	dependencies {
+		implementation("org.jetbrains.kotlin:kotlin-reflect")
+		testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
+	}
+
+	kotlin {
+		compilerOptions {
+			freeCompilerArgs.addAll("-Xjsr305=strict")
+		}
+	}
 }

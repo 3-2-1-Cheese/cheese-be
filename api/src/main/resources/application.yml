@@ -1,0 +1,10 @@
+spring:
+  application:
+    name: cheese321
+
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    display-request-duration: true
