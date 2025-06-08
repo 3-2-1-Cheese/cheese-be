@@ -9,18 +9,16 @@ import org.springframework.web.bind.annotation.RestController
 class PhotoBoothController : PhotoBoothApi {
 
     override fun getPhotoBooths(
+        lat: Double,
+        lng: Double,
+        radius: Int?,
         region: String?,
-        brand: String?,
-        keywords: List<String>?,
-        lat: Double?,
-        lng: Double?,
-        radius: Int?
+        brand: String?
     ): List<PhotoBoothResponse> {
         // TODO: 실제 서비스 로직 구현
+        // - 거리 기반 정렬 (필수)
         // - 지역 필터링
         // - 브랜드 필터링
-        // - 키워드 매칭 및 점수 계산
-        // - 거리 기반 정렬
         throw NotImplementedError("사진관 목록 조회 - 아직 구현 안됨")
     }
 

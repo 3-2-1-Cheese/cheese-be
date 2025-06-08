@@ -19,9 +19,6 @@ data class PhotoBoothResponse(
     @Schema(description = "주소", example = "서울시 강남구 역삼동 123-45")
     val address: String,
 
-    @Schema(description = "사용자 키워드와 매칭된 키워드들", example = "[\"자연스러운보정\", \"미니멀깔끔\"]")
-    val matchedKeywords: List<String>,
-
     @Schema(description = "평균 평점", example = "4.5")
     val rating: Double?,
 
@@ -29,5 +26,8 @@ data class PhotoBoothResponse(
     val reviewCount: Int,
 
     @Schema(description = "현재 위치로부터 거리(미터)", example = "450")
-    val distance: Int?
+    val distance: Int,
+
+    @Schema(description = "대표 이미지 URL", example = "https://example.com/photo.jpg")
+    val imageUrl: String?
 )
