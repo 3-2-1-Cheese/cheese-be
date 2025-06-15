@@ -1,4 +1,4 @@
-package com.hsmile.cheese321.api.dto.response
+package com.hsmile.cheese321.api.photobooth.dto
 
 import io.swagger.v3.oas.annotations.media.Schema
 

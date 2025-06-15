@@ -1,14 +1,14 @@
-package com.hsmile.cheese321.api.spec
+package com.hsmile.cheese321.api.photobooth
 
-import com.hsmile.cheese321.api.dto.response.PhotoBoothResponse
-import com.hsmile.cheese321.api.dto.response.PhotoBoothDetailResponse
+import com.hsmile.cheese321.api.photobooth.dto.PhotoBoothResponse
+import com.hsmile.cheese321.api.photobooth.dto.PhotoBoothDetailResponse
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.web.bind.annotation.*
 
-@Tag(name = "PhotoBooth", description = "사진관 API")
+@Tag(name = "PhotoBooth", description = "사진관 정보 API")
 @RequestMapping(PhotoBoothUris.BASE)
 interface PhotoBoothApi {
 
@@ -27,7 +27,7 @@ interface PhotoBoothApi {
         @RequestParam brand: String?             // 인생네컷, 포토이즘박스 등
     ): List<PhotoBoothResponse>
 
-    @Operation(summary = "사진관 상세 조회", description = "사진관 상세 정보 및 키워드 하이라이트")
+    @Operation(summary = "사진관 상세 정보", description = "특정 사진관의 상세 정보 조회")
     @GetMapping(PhotoBoothUris.DETAIL)
     @ApiResponses(
         value = [
