@@ -1,6 +1,13 @@
 spring:
   application:
     name: cheese321
+  profiles:
+    group:
+      local:
+        - common-local
+      prod:
+        - common-prod
+    active: local
 
 springdoc:
   api-docs:
