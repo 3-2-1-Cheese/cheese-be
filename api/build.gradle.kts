@@ -8,11 +8,12 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.3.0")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
-
     implementation("org.flywaydb:flyway-core")
 
-    developmentOnly("org.springframework.boot:spring-boot-devtools")
+    implementation("org.springframework.boot:spring-boot-starter-data-jpa")  // JPA 지원
+    implementation("org.locationtech.jts:jts-core")                      // Point 클래스 지원
 
+    developmentOnly("org.springframework.boot:spring-boot-devtools")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.security:spring-security-test")
 }

@@ -30,6 +30,9 @@ subprojects {
 		imports {
 			mavenBom("org.springframework.boot:spring-boot-dependencies:3.4.5")
 		}
+		dependencies {
+			dependency("org.locationtech.jts:jts-core:1.19.0")
+		}
 	}
 
 	if (name == "api") {

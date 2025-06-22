@@ -22,6 +22,7 @@ dependencies {
 
     // PostGIS 지원
     implementation("org.hibernate.orm:hibernate-spatial")
+    implementation("org.locationtech.jts:jts-core")
 
     runtimeOnly("org.postgresql:postgresql")
 
