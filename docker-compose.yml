@@ -9,7 +9,7 @@ services:
       POSTGRES_PASSWORD: 251625
       POSTGRES_DB: cheese321
     ports:
-      - "5432:5432"
+      - "5433:5432" #도커는 5433 로컬은 5432
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
