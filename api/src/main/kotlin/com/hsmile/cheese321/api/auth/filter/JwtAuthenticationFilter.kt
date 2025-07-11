@@ -46,7 +46,7 @@ class JwtAuthenticationFilter(
                     val authentication = jwtTokenProvider.getAuthentication(token)
                     SecurityContextHolder.getContext().authentication = authentication
 
-                    logger.debug("인증 성공: userId={}", authentication.name)
+                    logger.debug("인증 성공: userId=${authentication.name ?: "unknown"}")
                 } else {
                     logger.debug("Access Token이 아닙니다. 인증을 설정하지 않습니다.")
                 }
