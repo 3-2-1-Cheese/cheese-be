@@ -6,10 +6,6 @@ import org.springframework.boot.actuate.autoconfigure.security.servlet.Managemen
 import org.springframework.boot.runApplication
 
 @SpringBootApplication(
-    exclude = [
-        SecurityAutoConfiguration::class,
-        ManagementWebSecurityAutoConfiguration::class
-    ],
     scanBasePackages = ["com.hsmile.cheese321"]
 )
 class ApiApplication

@@ -19,3 +19,9 @@ logging:
     root: INFO
     com.hsmile.cheese321: DEBUG
     org.hibernate.SQL: DEBUG
+
+# JWT 설정
+jwt:
+  secret: "Y2hlZXNlMzIxLWp3dC1zZWNyZXQta2V5LWZvci1oLXNtaWxlLXBob3RvYm9vdGgtYXBwLTIwMjUtc2VjdXJlLWtleS1mb3ItcHJvZHVjdGlvbg=="
+  access-token-validity: 3600000  # 1시간 (밀리초)
+  refresh-token-validity: 2592000000  # 30일 (밀리초)
