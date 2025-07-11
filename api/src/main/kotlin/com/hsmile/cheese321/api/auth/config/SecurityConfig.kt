@@ -30,11 +30,11 @@ class SecurityConfig(
                     .requestMatchers("/api/v1/auth/**").permitAll()
                     .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
                     .requestMatchers("/actuator/health").permitAll()
-                    // 나머지는 인증 필요
-                    .anyRequest().authenticated()
+                    // 임시로 모든 요청 허용 (개발 편의)
+                    .anyRequest().permitAll()
             }
-            // JWT 인증 필터 추가
-            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter::class.java)
+        // JWT 필터 임시 비활성화
+        // .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter::class.java)
 
         return http.build()
     }
