@@ -9,7 +9,7 @@ import java.util.*
 
 /**
  * 사용자 엔티티
- * 카카오 소셜 로그인 기반 사용자 정보 관리
+ * 카카오 소셜 로그인으로 가입한 사용자 정보 관리
  */
 @Entity
 @Table(name = "users")
@@ -19,31 +19,27 @@ class User(
     val id: String = UUID.randomUUID().toString(),
 
     /**
-     * 카카오 고유 ID (유니크)
-     * 카카오에서 제공하는 사용자 식별자
+     * 카카오 고유 ID
      */
     @Column(name = "kakao_id", unique = true, nullable = false)
     val kakaoId: Long,
 
     /**
      * 사용자 닉네임
-     * 카카오 프로필 정보로 업데이트 가능
      */
-    @Column(nullable = false)
+    @Column(name = "nickname", nullable = false)
     var nickname: String,
 
     /**
      * 프로필 이미지 URL
-     * 카카오 프로필 이미지로 업데이트 가능
      */
     @Column(name = "profile_image_url")
     var profileImageUrl: String? = null,
 
     /**
-     * 리프레시 토큰
-     * JWT 갱신용 토큰 저장
+     * 리프레시 토큰 (로그아웃 시 무효화)
      */
-    @Column(name = "refresh_token", length = 500)
+    @Column(name = "refresh_token")
     var refreshToken: String? = null,
 
     @CreatedDate
@@ -54,28 +50,28 @@ class User(
     @Column(name = "updated_at", nullable = false)
     var updatedAt: LocalDateTime = LocalDateTime.now()
 ) {
+
     /**
-     * 사용자 정보 업데이트
-     * 카카오 로그인 시 최신 정보로 갱신
+     * 닉네임 업데이트
      */
-    fun updateProfile(nickname: String, profileImageUrl: String?) {
-        this.nickname = nickname
-        this.profileImageUrl = profileImageUrl
+    fun updateNickname(newNickname: String) {
+        this.nickname = newNickname
+        this.updatedAt = LocalDateTime.now()
+    }
+
+    /**
+     * 프로필 이미지 업데이트
+     */
+    fun updateProfileImage(imageUrl: String?) {
+        this.profileImageUrl = imageUrl
+        this.updatedAt = LocalDateTime.now()
     }
 
     /**
      * 리프레시 토큰 업데이트
      */
-    fun updateRefreshToken(refreshToken: String?) {
-        this.refreshToken = refreshToken
+    fun updateRefreshToken(newRefreshToken: String?) {
+        this.refreshToken = newRefreshToken
+        this.updatedAt = LocalDateTime.now()
     }
-
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (javaClass != other?.javaClass) return false
-        other as User
-        return id == other.id
-    }
-
-    override fun hashCode(): Int = id.hashCode()
 }
