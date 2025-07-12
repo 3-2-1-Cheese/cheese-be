@@ -19,26 +19,8 @@ data class PhotoBoothDetailResponse(
     @Schema(description = "상세 주소")
     val address: String,
 
-    @Schema(description = "전화번호")
-    val phoneNumber: String?,
-
-    @Schema(description = "운영시간", example = "{\"monday\": \"10:00-22:00\", \"tuesday\": \"10:00-22:00\"}")
-    val operatingHours: Map<String, String>,
-
-    @Schema(description = "부스 개수")
-    val boothCount: Int,
-
-    @Schema(description = "수용 인원")
-    val capacity: Int,
-
-    @Schema(description = "평균 평점")
-    val rating: Double?,
-
     @Schema(description = "리뷰 수")
     val reviewCount: Int,
-
-    @Schema(description = "긍정 리뷰 비율")
-    val positiveRatio: Double?,
 
     @Schema(description = "모든 키워드 (사용자 선호 키워드는 하이라이트)")
     val keywords: List<KeywordResponse>,
@@ -47,7 +29,13 @@ data class PhotoBoothDetailResponse(
     val imageUrls: List<String>,
 
     @Schema(description = "현재 위치로부터 거리(미터)")
-    val distance: Int?
+    val distance: Int?,
+
+    @Schema(description = "사용자 맞춤 추천 여부 (선호 키워드 매칭 시 true)")
+    val isRecommended: Boolean,
+
+    @Schema(description = "사용자가 찜한 사진관 여부")
+    val isFavorite: Boolean
 )
 
 @Schema(description = "키워드 응답")

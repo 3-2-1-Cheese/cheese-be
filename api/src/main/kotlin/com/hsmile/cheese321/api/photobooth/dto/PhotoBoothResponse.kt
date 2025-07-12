@@ -19,9 +19,6 @@ data class PhotoBoothResponse(
     @Schema(description = "주소", example = "서울시 강남구 역삼동 123-45")
     val address: String,
 
-    @Schema(description = "평균 평점", example = "4.5")
-    val rating: Double?,
-
     @Schema(description = "리뷰 수", example = "127")
     val reviewCount: Int,
 
@@ -29,5 +26,11 @@ data class PhotoBoothResponse(
     val distance: Int,
 
     @Schema(description = "대표 이미지 URL", example = "https://example.com/photo.jpg")
-    val imageUrl: String?
+    val imageUrl: String?,
+
+    @Schema(description = "사용자 맞춤 추천 여부 (선호 키워드 매칭 시 true)")
+    val isRecommended: Boolean,
+
+    @Schema(description = "사용자가 찜한 사진관 여부")
+    val isFavorite: Boolean
 )

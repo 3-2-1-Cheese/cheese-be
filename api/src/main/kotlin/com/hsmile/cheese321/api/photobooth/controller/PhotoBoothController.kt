@@ -27,7 +27,7 @@ class PhotoBoothController(
         brand: String?,
         keyword: String?
     ): List<PhotoBoothResponse> {
-        return photoBoothService.getPhotoBooths(lat, lng, radius, region, brand, keyword)
+        return photoBoothService.getPhotoBooths(userId, lat, lng, radius, region, brand, keyword)
     }
 
     /**
@@ -37,6 +37,6 @@ class PhotoBoothController(
         @AuthenticationPrincipal userId: String,
         id: String
     ): PhotoBoothDetailResponse {
-        return photoBoothService.getPhotoBoothDetail(id)
+        return photoBoothService.getPhotoBoothDetail(id, userId)
     }
 }
