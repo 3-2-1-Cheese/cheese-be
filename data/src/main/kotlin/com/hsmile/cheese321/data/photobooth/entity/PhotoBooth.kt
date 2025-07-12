@@ -48,7 +48,7 @@ class PhotoBooth(
     val averageRating: BigDecimal? = null,
 
     @Column(name = "image_urls", columnDefinition = "jsonb")
-    val imageUrls: Array<String>? = null,
+    val imageUrls: String? = null,
 
     @Column(name = "analysis_data", columnDefinition = "jsonb")
     val analysisData: String? = null

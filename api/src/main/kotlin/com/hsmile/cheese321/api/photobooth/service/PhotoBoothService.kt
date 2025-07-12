@@ -1,5 +1,3 @@
-// api/src/main/kotlin/com/hsmile/cheese321/api/photobooth/service/PhotoBoothService.kt
-
 package com.hsmile.cheese321.api.photobooth.service
 
 import com.hsmile.cheese321.api.photobooth.dto.PhotoBoothResponse
@@ -25,29 +23,43 @@ import kotlin.math.*
 class PhotoBoothService(
     private val photoBoothRepository: PhotoBoothRepository,
     private val photoBoothQueryRepository: PhotoBoothQueryRepository,
-    private val objectMapper: ObjectMapper = ObjectMapper()
+    private val objectMapper: ObjectMapper // Spring Boot의 기본 ObjectMapper Bean 주입
 ) {
 
     /**
      * 위치 기반 사진관 검색
-     * @param lat 사용자 위도
-     * @param lng 사용자 경도
+     * @param lat 사용자 위도 (선택)
+     * @param lng 사용자 경도 (선택)
      * @param radius 검색 반경(미터), 기본값 1000m
      * @param region 지역 필터 (강남역, 홍대입구역 등)
      * @param brand 브랜드 필터 (인생네컷, 포토이즘박스 등)
-     * @return 거리순 정렬된 사진관 목록
+     * @param keyword 통합 검색 키워드 (사진관명/브랜드명/지역)
+     * @return 거리순 정렬된 사진관 목록 (위치 없으면 리뷰순)
      */
     fun getPhotoBooths(
-        lat: Double,
-        lng: Double,
+        lat: Double?,
+        lng: Double?,
         radius: Int?,
         region: String?,
-        brand: String?
+        brand: String?,
+        keyword: String?
     ): List<PhotoBoothResponse> {
-        val searchRadius = radius ?: 1000
+        val photoBooths = if (lat != null && lng != null) {
+            // 위치 기반 검색 (공간 연산 사용)
+            val searchRadius = radius ?: 1000
+            photoBoothQueryRepository.search(lat, lng, searchRadius, region, brand, keyword)
+        } else {
+            // 지역/브랜드/키워드만으로 검색 (공간 연산 없음)
+            photoBoothQueryRepository.searchWithoutLocation(region, brand, keyword)
+        }
 
-        val photoBooths = photoBoothQueryRepository.search(lat, lng, searchRadius, region, brand)
-        return photoBooths.map { it.toResponse(lat, lng) }
+        return photoBooths.map {
+            if (lat != null && lng != null) {
+                it.toResponse(lat, lng)  // 실제 거리 계산
+            } else {
+                it.toResponseWithoutDistance()  // 거리 0
+            }
+        }
     }
 
     /**
@@ -69,6 +81,7 @@ class PhotoBoothService(
      */
     private fun PhotoBooth.toResponse(userLat: Double, userLng: Double): PhotoBoothResponse {
         val distance = calculateDistance(userLat, userLng, this.location.y, this.location.x)
+        val imageUrlList = parseImageUrls(this.imageUrls)
 
         return PhotoBoothResponse(
             id = this.id,
@@ -79,17 +92,32 @@ class PhotoBoothService(
             rating = this.averageRating?.toDouble(),
             reviewCount = this.reviewCount,
             distance = distance.toInt(),
-            imageUrl = this.imageUrls?.firstOrNull()
+            imageUrl = imageUrlList.firstOrNull() // 첫 번째 이미지를 대표 이미지로
         )
     }
 
     /**
-     * PhotoBooth Entity를 상세용 Response DTO로 변환
-     * 운영시간 파싱, 키워드 추출 등 상세 정보 처리
+     * PhotoBooth Entity를 목록용 Response DTO로 변환 (거리 없음)
      */
+    private fun PhotoBooth.toResponseWithoutDistance(): PhotoBoothResponse {
+        val imageUrlList = parseImageUrls(this.imageUrls)
+
+        return PhotoBoothResponse(
+            id = this.id,
+            name = this.name,
+            brand = this.brand,
+            region = this.region,
+            address = this.address,
+            rating = this.averageRating?.toDouble(),
+            reviewCount = this.reviewCount,
+            distance = 0, // 위치 정보 없을 때는 0
+            imageUrl = imageUrlList.firstOrNull()
+        )
+    }
     private fun PhotoBooth.toDetailResponse(): PhotoBoothDetailResponse {
         val operatingHoursMap = parseOperatingHours(this.operatingHours)
         val keywords = extractKeywords(this.analysisData)
+        val imageUrlList = parseImageUrls(this.imageUrls)
 
         return PhotoBoothDetailResponse(
             id = this.id,
@@ -105,9 +133,28 @@ class PhotoBoothService(
             reviewCount = this.reviewCount,
             positiveRatio = this.positiveRatio?.toDouble(),
             keywords = keywords,
-            imageUrls = this.imageUrls?.toList() ?: emptyList(),
+            imageUrls = imageUrlList,
             distance = null
         )
+    }
+
+    /**
+     * JSONB 이미지 URL 문자열을 List로 파싱
+     * @param imageUrls JSONB 문자열 (예: "[\"url1\", \"url2\"]")
+     * @return 이미지 URL 리스트
+     */
+    private fun parseImageUrls(imageUrls: String?): List<String> {
+        if (imageUrls.isNullOrBlank()) {
+            return emptyList()
+        }
+
+        return try {
+            val typeRef = object : TypeReference<List<String>>() {}
+            objectMapper.readValue(imageUrls, typeRef)
+        } catch (e: Exception) {
+            // JSON 파싱 실패 시 빈 리스트 반환
+            emptyList()
+        }
     }
 
     /**

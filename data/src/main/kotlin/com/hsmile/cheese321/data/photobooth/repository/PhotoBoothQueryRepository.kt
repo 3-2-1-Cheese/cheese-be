@@ -16,41 +16,13 @@ class PhotoBoothQueryRepository {
     private lateinit var entityManager: EntityManager
 
     /**
-     * 특정 위치 주변의 사진관 검색
-     * @param lat 중심점 위도
-     * @param lng 중심점 경도
-     * @param radius 검색 반경(미터)
-     * @return 거리순 정렬된 사진관 목록
-     */
-    fun findNearby(lat: Double, lng: Double, radius: Int): List<PhotoBooth> {
-        val sql = """
-            SELECT p.* 
-            FROM photobooths p 
-            WHERE ST_DWithin(
-                p.location, 
-                ST_SetSRID(ST_MakePoint(:lng, :lat), 4326), 
-                :radius
-            )
-            ORDER BY ST_Distance(
-                p.location, 
-                ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)
-            )
-        """.trimIndent()
-
-        return entityManager.createNativeQuery(sql, PhotoBooth::class.java)
-            .setParameter("lat", lat)
-            .setParameter("lng", lng)
-            .setParameter("radius", radius)
-            .resultList as List<PhotoBooth>
-    }
-
-    /**
-     * 다중 조건으로 사진관 검색
+     * 다중 조건으로 사진관 검색 (현재 사용 중)
      * @param lat 사용자 위도
      * @param lng 사용자 경도
      * @param radius 검색 반경(미터)
      * @param region 지역 필터 (nullable)
      * @param brand 브랜드 필터 (nullable)
+     * @param keyword 통합 검색 키워드 (nullable)
      * @return 거리순 정렬된 필터링된 사진관 목록
      */
     fun search(
@@ -58,7 +30,8 @@ class PhotoBoothQueryRepository {
         lng: Double,
         radius: Int,
         region: String?,
-        brand: String?
+        brand: String?,
+        keyword: String?
     ): List<PhotoBooth> {
 
         val conditions = mutableListOf<String>()
@@ -89,6 +62,12 @@ class PhotoBoothQueryRepository {
             params["brand"] = it
         }
 
+        // 키워드 검색 (선택) - 사진관명, 브랜드명, 지역에서 검색
+        keyword?.let {
+            conditions.add("(p.name ILIKE :keyword OR p.brand ILIKE :keyword OR p.region ILIKE :keyword)")
+            params["keyword"] = "%$it%"
+        }
+
         val sql = """
             SELECT p.* 
             FROM photobooths p 
@@ -109,38 +88,54 @@ class PhotoBoothQueryRepository {
     }
 
     /**
-     * 브랜드별 사진관 조회
-     * @param brand 브랜드명
-     * @return 이름순 정렬된 사진관 목록
+     * 위치 정보 없이 지역/브랜드/키워드로만 사진관 검색
+     * @param region 지역 필터 (nullable)
+     * @param brand 브랜드 필터 (nullable)
+     * @param keyword 통합 검색 키워드 (nullable)
+     * @return 리뷰순 정렬된 사진관 목록
      */
-    fun findByBrand(brand: String): List<PhotoBooth> {
+    fun searchWithoutLocation(region: String?, brand: String?, keyword: String?): List<PhotoBooth> {
+        val conditions = mutableListOf<String>()
+        val params = mutableMapOf<String, Any>()
+
+        // 지역 필터
+        region?.let {
+            conditions.add("p.region = :region")
+            params["region"] = it
+        }
+
+        // 브랜드 필터
+        brand?.let {
+            conditions.add("p.brand = :brand")
+            params["brand"] = it
+        }
+
+        // 키워드 검색 - 사진관명, 브랜드명, 지역에서 검색
+        keyword?.let {
+            conditions.add("(p.name ILIKE :keyword OR p.brand ILIKE :keyword OR p.region ILIKE :keyword)")
+            params["keyword"] = "%$it%"
+        }
+
+        // 조건이 없으면 전체 조회
+        val whereClause = if (conditions.isNotEmpty()) {
+            "WHERE ${conditions.joinToString(" AND ")}"
+        } else {
+            ""
+        }
+
         val sql = """
             SELECT p.* 
             FROM photobooths p 
-            WHERE p.brand = :brand
-            ORDER BY p.name
-        """.trimIndent()
-
-        return entityManager.createNativeQuery(sql, PhotoBooth::class.java)
-            .setParameter("brand", brand)
-            .resultList as List<PhotoBooth>
-    }
-
-    /**
-     * 지역별 사진관 조회
-     * @param region 지역명
-     * @return 리뷰수 많은 순으로 정렬된 사진관 목록
-     */
-    fun findByRegion(region: String): List<PhotoBooth> {
-        val sql = """
-            SELECT p.* 
-            FROM photobooths p 
-            WHERE p.region = :region
+            $whereClause
             ORDER BY p.review_count DESC, p.name
         """.trimIndent()
 
-        return entityManager.createNativeQuery(sql, PhotoBooth::class.java)
-            .setParameter("region", region)
-            .resultList as List<PhotoBooth>
+        val query = entityManager.createNativeQuery(sql, PhotoBooth::class.java)
+        params.forEach { (key, value) ->
+            query.setParameter(key, value)
+        }
+
+        @Suppress("UNCHECKED_CAST")
+        return query.resultList as List<PhotoBooth>
     }
 }
