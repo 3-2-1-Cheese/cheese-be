@@ -47,7 +47,6 @@ class UserService(
         val user = userRepository.findById(userId)
             .orElseThrow { IllegalArgumentException("사용자를 찾을 수 없습니다: $userId") }
 
-        // JSON으로 변환하여 저장
         val keywordsJson = objectMapper.writeValueAsString(request.keywords)
         user.updatePreferredKeywords(keywordsJson)
         userRepository.save(user)
@@ -68,7 +67,7 @@ class UserService(
     }
 
     /**
-     * JSON 키워드 문자열을 List로 파싱
+     * JSON 키워드 문자열을 List<String>으로 파싱
      */
     private fun parseKeywords(keywordsJson: String?): List<String> {
         if (keywordsJson.isNullOrBlank()) {

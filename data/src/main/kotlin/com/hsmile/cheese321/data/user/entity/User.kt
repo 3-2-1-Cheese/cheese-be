@@ -1,6 +1,8 @@
 package com.hsmile.cheese321.data.user.entity
 
 import jakarta.persistence.*
+import org.hibernate.annotations.JdbcTypeCode
+import org.hibernate.type.SqlTypes
 import org.springframework.data.annotation.CreatedDate
 import org.springframework.data.annotation.LastModifiedDate
 import org.springframework.data.jpa.domain.support.AuditingEntityListener
@@ -42,10 +44,11 @@ class User(
     var refreshToken: String? = null,
 
     /**
-     * 사용자 선호 키워드 목록 (JSON 배열로 저장)
-     * 예: ["자연스러운보정", "빈티지", "화사한톤"]
+     * 사용자 선호 키워드 목록 (JSONB 문자열로 저장)
+     * 예: ["자연스러운보정", "빈티지", "하이앵글"]
      */
     @Column(name = "preferred_keywords", columnDefinition = "jsonb")
+    @JdbcTypeCode(SqlTypes.JSON)
     var preferredKeywords: String? = null,
 
     @CreatedDate
@@ -86,7 +89,7 @@ class User(
     }
 
     /**
-     * 선호 키워드 업데이트
+     * 선호 키워드 업데이트 (JSON 문자열로)
      */
     fun updatePreferredKeywords(keywordsJson: String?) {
         this.preferredKeywords = keywordsJson
