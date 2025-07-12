@@ -1,78 +1,97 @@
 package com.hsmile.cheese321.api.auth.dto
 
+import com.hsmile.cheese321.data.user.entity.User
 import io.swagger.v3.oas.annotations.media.Schema
 
-/**
- * 카카오 로그인 요청 DTO
- */
+// ===== 요청 DTO =====
+
 @Schema(description = "카카오 로그인 요청")
 data class KakaoLoginRequest(
-    @Schema(description = "카카오 Access Token", example = "xxxxxx")
+    @Schema(description = "카카오 액세스 토큰")
     val accessToken: String
 )
 
-/**
- * 인증 토큰 응답 DTO
- */
+@Schema(description = "토큰 갱신 요청")
+data class RefreshTokenRequest(
+    @Schema(description = "리프레시 토큰")
+    val refreshToken: String
+)
+
+// ===== 응답 DTO =====
+
 @Schema(description = "인증 토큰 응답")
 data class AuthTokenResponse(
-    @Schema(description = "Access Token", example = "eyJhbGciOiJIUzI1NiJ9...")
+    @Schema(description = "액세스 토큰")
     val accessToken: String,
 
-    @Schema(description = "Refresh Token", example = "eyJhbGciOiJIUzI1NiJ9...")
+    @Schema(description = "리프레시 토큰")
     val refreshToken: String,
-
-    @Schema(description = "신규 가입 여부", example = "true")
-    val isNewUser: Boolean,
 
     @Schema(description = "사용자 정보")
     val user: UserResponse
 )
 
-/**
- * 사용자 정보 응답 DTO
- */
-@Schema(description = "사용자 정보")
+@Schema(description = "사용자 정보 응답")
 data class UserResponse(
-    @Schema(description = "사용자 ID", example = "550e8400-e29b-41d4-a716-446655440000")
+    @Schema(description = "사용자 ID")
     val id: String,
 
-    @Schema(description = "카카오 ID", example = "12345678")
-    val kakaoId: Long,
-
-    @Schema(description = "닉네임", example = "홍길동")
+    @Schema(description = "닉네임")
     val nickname: String,
 
-    @Schema(description = "프로필 이미지 URL", example = "https://k.kakaocdn.net/...")
-    val profileImageUrl: String?
+    @Schema(description = "프로필 이미지 URL")
+    val profileImageUrl: String?,
+
+    @Schema(description = "가입일시")
+    val createdAt: String
 )
 
-/**
- * 토큰 갱신 요청 DTO
- */
-@Schema(description = "토큰 갱신 요청")
-data class RefreshTokenRequest(
-    @Schema(description = "Refresh Token", example = "eyJhbGciOiJIUzI1NiJ9...")
-    val refreshToken: String
+// ===== 개발용 DTO =====
+
+@Schema(description = "개발용 토큰 응답")
+data class DevTokenResponse(
+    @Schema(description = "개발용 액세스 토큰")
+    val accessToken: String,
+
+    @Schema(description = "사용자 ID")
+    val userId: String,
+
+    @Schema(description = "만료 시간")
+    val expiresAt: String,
+
+    @Schema(description = "안내 메시지")
+    val message: String
 )
 
-/**
- * 토큰 갱신 응답 DTO
- */
-@Schema(description = "토큰 갱신 응답")
-data class RefreshTokenResponse(
-    @Schema(description = "새로운 Access Token", example = "eyJhbGciOiJIUzI1NiJ9...")
-    val accessToken: String
+@Schema(description = "개발 모드 상태 응답")
+data class DevStatusResponse(
+    @Schema(description = "개발 모드 활성화 여부")
+    val enabled: Boolean,
+
+    @Schema(description = "현재 환경")
+    val environment: String,
+
+    @Schema(description = "무효화된 토큰 수")
+    val invalidatedTokensCount: Int,
+
+    @Schema(description = "상태 메시지")
+    val message: String
 )
 
+// TODO: 나중에 구현할 DTO들
+// - RefreshTokenResponse (토큰 갱신용 간소화된 응답)
+// - 토큰 갱신 시 사용자 정보 전체 반환하지 않고 토큰만 반환
+
+// ===== User Entity 확장 함수 =====
+
 /**
- * User Entity를 UserResponse DTO로 변환하는 확장 함수
+ * User Entity를 UserResponse DTO로 변환
  */
-fun com.hsmile.cheese321.data.user.entity.User.toUserResponse(): UserResponse {
+fun User.toUserResponse(): UserResponse {
     return UserResponse(
         id = this.id,
-        kakaoId = this.kakaoId,
         nickname = this.nickname,
-        profileImageUrl = this.profileImageUrl
+        profileImageUrl = this.profileImageUrl,
+        createdAt = this.createdAt.toString()
     )
 }

@@ -1,144 +1,178 @@
 package com.hsmile.cheese321.api.auth.service
 
-import com.hsmile.cheese321.api.auth.client.KakaoApiClient
-import com.hsmile.cheese321.api.auth.dto.AuthTokenResponse
-import com.hsmile.cheese321.api.auth.dto.RefreshTokenResponse
-import com.hsmile.cheese321.api.auth.dto.toUserResponse
-import com.hsmile.cheese321.api.auth.jwt.JwtTokenProvider
+import com.hsmile.cheese321.api.auth.dto.*
+import com.hsmile.cheese321.api.common.client.kakao.KakaoApiClient
+import com.hsmile.cheese321.api.common.client.kakao.KakaoUserInfoResponse
+import com.hsmile.cheese321.api.common.exception.AuthException
+import com.hsmile.cheese321.api.common.security.JwtTokenProvider
 import com.hsmile.cheese321.data.user.entity.User
 import com.hsmile.cheese321.data.user.repository.UserRepository
-import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.LocalDateTime
+import java.util.*
+import java.util.concurrent.ConcurrentHashMap
 
 /**
- * 인증 관련 비즈니스 로직 처리 서비스
- * 카카오 로그인, JWT 토큰 관리
+ * 인증 서비스
  */
 @Service
 @Transactional
 class AuthService(
-    private val kakaoApiClient: KakaoApiClient,
     private val userRepository: UserRepository,
-    private val jwtTokenProvider: JwtTokenProvider
+    private val jwtTokenProvider: JwtTokenProvider,
+    private val kakaoApiClient: KakaoApiClient
 ) {
 
-    private val logger = LoggerFactory.getLogger(AuthService::class.java)
+    // 개발용 토큰 무효화를 위한 메모리 저장소 (로컬 전용)
+    private val invalidatedDevTokens = ConcurrentHashMap.newKeySet<String>()
 
     /**
-     * 카카오 로그인 처리
-     * @param kakaoAccessToken 카카오 Access Token
-     * @return 인증 토큰 및 사용자 정보
+     * 카카오 로그인
      */
-    fun loginWithKakao(kakaoAccessToken: String): AuthTokenResponse {
-        logger.info("카카오 로그인 시작")
-
+    fun loginWithKakao(accessToken: String): AuthTokenResponse {
         // 1. 카카오 API로 사용자 정보 조회
-        val kakaoUserInfo = kakaoApiClient.fetchUserInfo(kakaoAccessToken)
+        val kakaoUserInfo = kakaoApiClient.fetchUserInfo(accessToken)
         val kakaoId = kakaoUserInfo.id
+        val nickname = extractNickname(kakaoUserInfo) ?: "치즈_${kakaoId.toString().takeLast(4)}"
 
-        // 2. 닉네임 추출 (기본값 설정으로 안정성 확보)
-        val nickname = extractNickname(kakaoUserInfo)
-            ?: "치즈_${kakaoId.toString().takeLast(4)}"
+        // 2. 사용자 정보 조회 또는 생성
+        val user = userRepository.findByKakaoId(kakaoId)
+            ?: createNewUser(kakaoId, nickname)
 
-        // 3. 프로필 이미지 추출
-        val profileImageUrl = extractProfileImageUrl(kakaoUserInfo)
-
-        // 4. 기존 사용자 조회 또는 신규 생성
-        val (user, isNewUser) = userRepository.findByKakaoId(kakaoId)?.let { existingUser ->
-            logger.info("기존 사용자 로그인: kakaoId={}", kakaoId)
-            // 기존 사용자 정보 업데이트
-            existingUser.updateProfile(nickname, profileImageUrl)
-            existingUser to false
-        } ?: run {
-            logger.info("신규 사용자 가입: kakaoId={}", kakaoId)
-            // 신규 사용자 생성
-            val newUser = User(
-                kakaoId = kakaoId,
-                nickname = nickname,
-                profileImageUrl = profileImageUrl
-            )
-            userRepository.save(newUser) to true
+        // 3. 기존 사용자면 정보 업데이트
+        if (user.nickname != nickname) {
+            user.updateNickname(nickname)
+            userRepository.save(user)
         }
 
-        // 5. JWT 토큰 생성
-        val accessToken = jwtTokenProvider.generateAccessToken(user.id)
+        // 4. JWT 토큰 발급
+        val newAccessToken = jwtTokenProvider.generateAccessToken(user.id)
         val refreshToken = jwtTokenProvider.generateRefreshToken(user.id)
 
-        // 6. 리프레시 토큰 저장
+        // 5. Refresh Token 저장
         user.updateRefreshToken(refreshToken)
-
-        logger.info("카카오 로그인 성공: userId={}, isNewUser={}", user.id, isNewUser)
+        userRepository.save(user)
 
         return AuthTokenResponse(
-            accessToken = accessToken,
+            accessToken = newAccessToken,
             refreshToken = refreshToken,
-            isNewUser = isNewUser,
             user = user.toUserResponse()
         )
     }
 
     /**
-     * 리프레시 토큰으로 Access Token 갱신
-     * @param refreshToken 리프레시 토큰
-     * @return 새로운 Access Token
+     * 토큰 갱신
      */
-    fun refreshAccessToken(refreshToken: String): RefreshTokenResponse {
-        logger.info("토큰 갱신 요청")
-
-        // 1. 리프레시 토큰 검증
+    fun refreshToken(refreshToken: String): AuthTokenResponse {
+        // 1. Refresh Token 검증
         if (!jwtTokenProvider.validateToken(refreshToken)) {
-            throw AuthException("유효하지 않은 리프레시 토큰입니다")
+            throw AuthException("유효하지 않은 Refresh Token입니다")
         }
 
-        // 2. 토큰 타입 확인
-        if (jwtTokenProvider.getTokenType(refreshToken) != "refresh") {
-            throw AuthException("리프레시 토큰이 아닙니다")
+        val tokenType = jwtTokenProvider.getTokenType(refreshToken)
+        if (tokenType != "refresh") {
+            throw AuthException("Refresh Token이 아닙니다")
         }
 
-        // 3. DB에서 해당 리프레시 토큰을 가진 사용자 조회
-        val user = userRepository.findByRefreshToken(refreshToken)
-            ?: throw AuthException("유효하지 않은 리프레시 토큰입니다")
+        // 2. 사용자 조회
+        val userId = jwtTokenProvider.getUserIdFromToken(refreshToken)
+        val user = userRepository.findById(userId)
+            .orElseThrow { AuthException("존재하지 않는 사용자입니다") }
 
-        // 4. 새로운 Access Token 생성
-        val newAccessToken = jwtTokenProvider.generateAccessToken(user.id)
+        // 3. 저장된 Refresh Token과 비교
+        if (user.refreshToken != refreshToken) {
+            throw AuthException("유효하지 않은 Refresh Token입니다")
+        }
 
-        logger.info("토큰 갱신 성공: userId={}", user.id)
+        // 4. 새로운 토큰 발급
+        val newAccessToken = jwtTokenProvider.generateAccessToken(userId)
+        val newRefreshToken = jwtTokenProvider.generateRefreshToken(userId)
 
-        return RefreshTokenResponse(accessToken = newAccessToken)
+        // 5. 새로운 Refresh Token 저장
+        user.updateRefreshToken(newRefreshToken)
+        userRepository.save(user)
+
+        return AuthTokenResponse(
+            accessToken = newAccessToken,
+            refreshToken = newRefreshToken,
+            user = user.toUserResponse()
+        )
     }
 
     /**
-     * 로그아웃 처리 (리프레시 토큰 삭제)
-     * @param userId 사용자 ID
+     * 로그아웃
      */
     fun logout(userId: String) {
-        logger.info("로그아웃 요청: userId={}", userId)
+        try {
+            val user = userRepository.findById(userId).orElse(null)
 
-        userRepository.findById(userId).ifPresent { user ->
-            user.updateRefreshToken(null)
-            logger.info("로그아웃 성공: userId={}", userId)
+            // Refresh Token 제거
+            user?.let {
+                it.updateRefreshToken(null)
+                userRepository.save(it)
+            }
+        } catch (e: Exception) {
+            // 사용자를 찾을 수 없어도 로그아웃은 성공으로 처리
         }
+    }
+
+    // ===== 개발용 기능들 =====
+
+    /**
+     * 개발용 토큰 발급
+     */
+    fun generateDevToken(userId: String): DevTokenResponse {
+        val devToken = jwtTokenProvider.generateDevToken(userId)
+
+        return DevTokenResponse(
+            accessToken = devToken,
+            userId = userId,
+            expiresAt = "무제한",
+            message = "개발용 토큰이 발급되었습니다. 이 토큰은 로컬 환경에서만 유효합니다."
+        )
+    }
+
+    /**
+     * 개발용 토큰 무효화
+     */
+    fun invalidateDevTokens() {
+        // 메모리에서 모든 개발 토큰을 무효화 처리
+        invalidatedDevTokens.clear()
+    }
+
+    /**
+     * 개발 상태 확인
+     */
+    fun getDevStatus(): DevStatusResponse {
+        return DevStatusResponse(
+            enabled = true,
+            environment = "local",
+            invalidatedTokensCount = invalidatedDevTokens.size,
+            message = "개발 모드가 활성화되어 있습니다."
+        )
+    }
+
+    // ===== 내부 헬퍼 메서드들 =====
+
+    /**
+     * 새로운 사용자 생성
+     */
+    private fun createNewUser(kakaoId: Long, nickname: String): User {
+        val user = User(
+            id = UUID.randomUUID().toString(),
+            kakaoId = kakaoId,
+            nickname = nickname,
+            profileImageUrl = null,
+            createdAt = LocalDateTime.now()
+        )
+        return userRepository.save(user)
     }
 
     /**
      * 카카오 사용자 정보에서 닉네임 추출
      */
-    private fun extractNickname(kakaoUserInfo: com.hsmile.cheese321.api.auth.dto.KakaoUserInfoResponse): String? {
+    private fun extractNickname(kakaoUserInfo: KakaoUserInfoResponse): String? {
         return kakaoUserInfo.properties?.nickname
-            ?: kakaoUserInfo.kakaoAccount?.profile?.nickname
-    }
-
-    /**
-     * 카카오 사용자 정보에서 프로필 이미지 URL 추출
-     */
-    private fun extractProfileImageUrl(kakaoUserInfo: com.hsmile.cheese321.api.auth.dto.KakaoUserInfoResponse): String? {
-        return kakaoUserInfo.properties?.profileImage
-            ?: kakaoUserInfo.kakaoAccount?.profile?.profileImageUrl
     }
 }
-
-/**
- * 인증 관련 예외
- */
-class AuthException(message: String, cause: Throwable? = null) : RuntimeException(message, cause)
