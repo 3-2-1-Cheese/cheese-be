@@ -10,6 +10,15 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.*
 import jakarta.validation.Valid
 
+/**
+ * User API URI 상수
+ */
+object UserUris {
+    const val BASE = "/api/v1/users"
+    const val ME = "/me"
+    const val KEYWORDS = "/me/keywords"
+    const val FAVORITES = "/me/favorites"
+}
 
 /**
  * 사용자 정보 관리 API
@@ -52,20 +61,15 @@ interface UserApi {
     )
     fun getPreferredKeywords(@AuthenticationPrincipal userId: String): ResponseEntity<PreferredKeywordsResponse>
 
-    // TODO: 찜하기 기능 API들 (다음 단계에서 구현)
-    /*
+    // ===== 찜하기 기능 API =====
+
     @Operation(summary = "관심 사진관 목록 조회", description = "내가 찜한 사진관 목록 조회")
     @GetMapping(UserUris.BASE + UserUris.FAVORITES)
+    @ApiResponses(
+        value = [
+            ApiResponse(responseCode = "200", description = "관심 목록 조회 성공"),
+            ApiResponse(responseCode = "401", description = "인증 필요")
+        ]
+    )
     fun getFavoritePhotoBooths(@AuthenticationPrincipal userId: String): ResponseEntity<FavoritePhotoBoothsResponse>
-    */
-
-    /**
-     * User API URI 상수
-     */
-    object UserUris {
-        const val BASE = "/api/v1/users"
-        const val ME = "/me"
-        const val KEYWORDS = "/me/keywords"
-        const val FAVORITES = "/me/favorites"
-    }
 }

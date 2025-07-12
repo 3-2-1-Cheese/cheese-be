@@ -38,35 +38,3 @@ data class UserProfileResponse(
     @Schema(description = "찜한 사진관 개수")
     val favoriteCount: Long
 )
-
-// ===== 찜하기 관련 DTO (나중에 사용) =====
-
-@Schema(description = "관심 사진관 목록 응답")
-data class FavoritePhotoBoothsResponse(
-    @Schema(description = "찜한 사진관 목록")
-    val photoBooths: List<FavoritePhotoBoothInfo>
-)
-
-@Schema(description = "찜한 사진관 정보")
-data class FavoritePhotoBoothInfo(
-    @Schema(description = "사진관 ID")
-    val id: String,
-
-    @Schema(description = "사진관 이름")
-    val name: String,
-
-    @Schema(description = "브랜드명")
-    val brand: String,
-
-    @Schema(description = "지역")
-    val region: String,
-
-    @Schema(description = "주소")
-    val address: String,
-
-    @Schema(description = "대표 이미지 URL")
-    val imageUrl: String?,
-
-    @Schema(description = "찜한 날짜")
-    val favoritedAt: String
-)

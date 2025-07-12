@@ -2,18 +2,20 @@ package com.hsmile.cheese321.api.user.controller
 
 import com.hsmile.cheese321.api.user.dto.*
 import com.hsmile.cheese321.api.user.service.UserService
+import com.hsmile.cheese321.api.user.service.FavoriteService
 import com.hsmile.cheese321.api.user.spec.UserApi
-import jakarta.validation.Valid
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.*
+import jakarta.validation.Valid
 
 /**
  * 사용자 정보 관리 컨트롤러
  */
 @RestController
 class UserController(
-    private val userService: UserService
+    private val userService: UserService,
+    private val favoriteService: FavoriteService
 ) : UserApi {
 
     /**
@@ -40,6 +42,14 @@ class UserController(
      */
     override fun getPreferredKeywords(@AuthenticationPrincipal userId: String): ResponseEntity<PreferredKeywordsResponse> {
         val response = userService.getPreferredKeywords(userId)
+        return ResponseEntity.ok(response)
+    }
+
+    /**
+     * 관심 사진관 목록 조회
+     */
+    override fun getFavoritePhotoBooths(@AuthenticationPrincipal userId: String): ResponseEntity<FavoritePhotoBoothsResponse> {
+        val response = favoriteService.getFavoritePhotoBooths(userId)
         return ResponseEntity.ok(response)
     }
 }

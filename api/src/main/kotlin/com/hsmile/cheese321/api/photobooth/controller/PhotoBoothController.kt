@@ -4,6 +4,9 @@ import com.hsmile.cheese321.api.photobooth.dto.PhotoBoothResponse
 import com.hsmile.cheese321.api.photobooth.dto.PhotoBoothDetailResponse
 import com.hsmile.cheese321.api.photobooth.service.PhotoBoothService
 import com.hsmile.cheese321.api.photobooth.spec.PhotoBoothApi
+import com.hsmile.cheese321.api.user.dto.FavoriteToggleResponse
+import com.hsmile.cheese321.api.user.service.FavoriteService
+import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.RestController
 
@@ -12,7 +15,8 @@ import org.springframework.web.bind.annotation.RestController
  */
 @RestController
 class PhotoBoothController(
-    private val photoBoothService: PhotoBoothService
+    private val photoBoothService: PhotoBoothService,
+    private val favoriteService: FavoriteService
 ) : PhotoBoothApi {
 
     /**
@@ -38,5 +42,16 @@ class PhotoBoothController(
         id: String
     ): PhotoBoothDetailResponse {
         return photoBoothService.getPhotoBoothDetail(id, userId)
+    }
+
+    /**
+     * 사진관 찜하기/취소 토글
+     */
+    override fun toggleFavorite(
+        @AuthenticationPrincipal userId: String,
+        id: String
+    ): ResponseEntity<FavoriteToggleResponse> {
+        val response = favoriteService.toggleFavorite(userId, id)
+        return ResponseEntity.ok(response)
     }
 }
