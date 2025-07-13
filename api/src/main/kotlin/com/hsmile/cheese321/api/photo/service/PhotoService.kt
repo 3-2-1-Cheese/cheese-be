@@ -1,6 +1,7 @@
 package com.hsmile.cheese321.api.photo.service
 
 import com.hsmile.cheese321.api.photo.dto.*
+import com.hsmile.cheese321.api.user.service.VisitHistoryService
 import com.hsmile.cheese321.data.photo.entity.Photo
 import com.hsmile.cheese321.data.photo.entity.Album
 import com.hsmile.cheese321.data.photo.entity.AlbumPhoto
@@ -22,7 +23,8 @@ class PhotoService(
     private val photoRepository: PhotoRepository,
     private val albumRepository: AlbumRepository,
     private val albumPhotoRepository: AlbumPhotoRepository,
-    private val photoBoothRepository: PhotoBoothRepository
+    private val photoBoothRepository: PhotoBoothRepository,
+    private val visitHistoryService: VisitHistoryService
 ) {
 
     // ===== 사진 관련 메서드들 =====
@@ -50,6 +52,16 @@ class PhotoService(
         // 기본 앨범에 자동 추가
         val defaultAlbum = getOrCreateDefaultAlbum(userId)
         addPhotoToAlbum(defaultAlbum.id, photoId)
+
+        // 방문 기록 추가
+        // 방문 기록 실패해도 사진 업로드는 성공으로 처리
+        try {
+            visitHistoryService.recordVisit(userId, photoBoothId)
+        } catch (e: Exception) {
+            // 방문 기록 실패는 로그만 남기고 계속 진행
+            // TODO: 실제 운영 시 로깅 시스템 사용
+            println("방문 기록 호출 실패 - userId: $userId, photoBoothId: $photoBoothId")
+        }
 
         return PhotoUploadResponse(
             photoId = photoId,

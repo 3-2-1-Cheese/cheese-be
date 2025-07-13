@@ -7,6 +7,8 @@ import com.hsmile.cheese321.api.common.exception.AuthException
 import com.hsmile.cheese321.api.common.security.JwtTokenProvider
 import com.hsmile.cheese321.data.user.entity.User
 import com.hsmile.cheese321.data.user.repository.UserRepository
+import com.hsmile.cheese321.data.photo.entity.Album
+import com.hsmile.cheese321.data.photo.repository.AlbumRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
@@ -20,6 +22,7 @@ import java.util.concurrent.ConcurrentHashMap
 @Transactional
 class AuthService(
     private val userRepository: UserRepository,
+    private val albumRepository: AlbumRepository, // 기본 앨범 생성용 추가
     private val jwtTokenProvider: JwtTokenProvider,
     private val kakaoApiClient: KakaoApiClient
 ) {
@@ -36,9 +39,9 @@ class AuthService(
         val kakaoId = kakaoUserInfo.id
         val nickname = extractNickname(kakaoUserInfo) ?: "치즈_${kakaoId.toString().takeLast(4)}"
 
-        // 2. 사용자 정보 조회 또는 생성
+        // 2. 사용자 정보 조회 또는 생성 (기본 앨범 자동 생성 포함)
         val user = userRepository.findByKakaoId(kakaoId)
-            ?: createNewUser(kakaoId, nickname)
+            ?: createNewUserWithDefaultAlbum(kakaoId, nickname)
 
         // 3. 기존 사용자면 정보 업데이트
         if (user.nickname != nickname) {
@@ -156,9 +159,10 @@ class AuthService(
     // ===== 내부 헬퍼 메서드들 =====
 
     /**
-     * 새로운 사용자 생성
+     * 새로운 사용자 생성 + 기본 앨범 자동 생성
      */
-    private fun createNewUser(kakaoId: Long, nickname: String): User {
+    private fun createNewUserWithDefaultAlbum(kakaoId: Long, nickname: String): User {
+        // 1. 사용자 생성
         val user = User(
             id = UUID.randomUUID().toString(),
             kakaoId = kakaoId,
@@ -166,7 +170,25 @@ class AuthService(
             profileImageUrl = null,
             createdAt = LocalDateTime.now()
         )
-        return userRepository.save(user)
+        val savedUser = userRepository.save(user)
+
+        // 2. 기본 앨범 생성 ("전체 사진")
+        val defaultAlbum = Album.createDefaultAlbum(savedUser.id)
+        albumRepository.save(defaultAlbum)
+
+        return savedUser
+    }
+
+    /**
+     * 기존 사용자의 기본 앨범 확인 및 생성 (마이그레이션용)
+     */
+    fun ensureDefaultAlbumExists(userId: String) {
+        val existingDefaultAlbum = albumRepository.findByUserIdAndIsDefaultTrue(userId)
+
+        if (existingDefaultAlbum == null) {
+            val defaultAlbum = Album.createDefaultAlbum(userId)
+            albumRepository.save(defaultAlbum)
+        }
     }
 
     /**

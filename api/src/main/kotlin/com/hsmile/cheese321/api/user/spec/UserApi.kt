@@ -18,6 +18,7 @@ object UserUris {
     const val ME = "/me"
     const val KEYWORDS = "/me/keywords"
     const val FAVORITES = "/me/favorites"
+    const val RECENT_VISITS = "/me/recent-visits"
 }
 
 /**
@@ -61,8 +62,6 @@ interface UserApi {
     )
     fun getPreferredKeywords(@AuthenticationPrincipal userId: String): ResponseEntity<PreferredKeywordsResponse>
 
-    // ===== 찜하기 기능 API =====
-
     @Operation(summary = "관심 사진관 목록 조회", description = "내가 찜한 사진관 목록 조회")
     @GetMapping(UserUris.BASE + UserUris.FAVORITES)
     @ApiResponses(
@@ -72,4 +71,16 @@ interface UserApi {
         ]
     )
     fun getFavoritePhotoBooths(@AuthenticationPrincipal userId: String): ResponseEntity<FavoritePhotoBoothsResponse>
+
+    // ===== 방문 기록 API =====
+
+    @Operation(summary = "최근 방문 사진관 조회", description = "사용자가 최근에 방문한 사진관 목록 조회")
+    @GetMapping(UserUris.BASE + UserUris.RECENT_VISITS)
+    @ApiResponses(
+        value = [
+            ApiResponse(responseCode = "200", description = "방문 기록 조회 성공"),
+            ApiResponse(responseCode = "401", description = "인증 필요")
+        ]
+    )
+    fun getRecentVisits(@AuthenticationPrincipal userId: String): ResponseEntity<RecentVisitsResponse>
 }

@@ -3,6 +3,7 @@ package com.hsmile.cheese321.api.user.controller
 import com.hsmile.cheese321.api.user.dto.*
 import com.hsmile.cheese321.api.user.service.UserService
 import com.hsmile.cheese321.api.user.service.FavoriteService
+import com.hsmile.cheese321.api.user.service.VisitHistoryService
 import com.hsmile.cheese321.api.user.spec.UserApi
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
@@ -15,7 +16,8 @@ import jakarta.validation.Valid
 @RestController
 class UserController(
     private val userService: UserService,
-    private val favoriteService: FavoriteService
+    private val favoriteService: FavoriteService,
+    private val visitHistoryService: VisitHistoryService
 ) : UserApi {
 
     /**
@@ -50,6 +52,14 @@ class UserController(
      */
     override fun getFavoritePhotoBooths(@AuthenticationPrincipal userId: String): ResponseEntity<FavoritePhotoBoothsResponse> {
         val response = favoriteService.getFavoritePhotoBooths(userId)
+        return ResponseEntity.ok(response)
+    }
+
+    /**
+     * 최근 방문 사진관 조회 (새로 추가)
+     */
+    override fun getRecentVisits(@AuthenticationPrincipal userId: String): ResponseEntity<RecentVisitsResponse> {
+        val response = visitHistoryService.getRecentVisits(userId)
         return ResponseEntity.ok(response)
     }
 }
