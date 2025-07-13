@@ -2,9 +2,16 @@ plugins {
     kotlin("jvm")
     kotlin("plugin.spring")
     kotlin("plugin.jpa")
+    kotlin("plugin.allopen")
     kotlin("kapt")
     id("org.springframework.boot") apply false
     id("io.spring.dependency-management")
+}
+
+allOpen {
+    annotation("jakarta.persistence.Entity")
+    annotation("jakarta.persistence.Embeddable")
+    annotation("jakarta.persistence.MappedSuperclass")
 }
 
 dependencies {
