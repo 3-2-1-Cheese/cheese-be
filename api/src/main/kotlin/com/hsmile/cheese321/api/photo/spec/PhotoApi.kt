@@ -9,7 +9,7 @@ import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.multipart.MultipartFile
-
+import jakarta.validation.Valid
 
 /**
  * 사진 및 앨범 관리 API
@@ -30,7 +30,7 @@ interface PhotoApi {
         ]
     )
     fun uploadPhoto(
-        @AuthenticationPrincipal userId: String, // JWT에서 추출
+        @AuthenticationPrincipal userId: String,
         @RequestParam("photoBoothId") photoBoothId: String,
         @RequestParam("file") file: MultipartFile
     ): ResponseEntity<PhotoUploadResponse>
@@ -43,9 +43,7 @@ interface PhotoApi {
             ApiResponse(responseCode = "401", description = "인증 필요")
         ]
     )
-    fun getMyPhotos(
-        @AuthenticationPrincipal userId: String // JWT에서 추출
-    ): ResponseEntity<List<PhotoResponse>>
+    fun getMyPhotos(@AuthenticationPrincipal userId: String): ResponseEntity<List<PhotoResponse>>
 
     @Operation(summary = "사진 상세 조회", description = "특정 사진의 상세 정보 조회")
     @GetMapping(PhotoUris.BASE + PhotoUris.PHOTO_DETAIL)
@@ -58,7 +56,7 @@ interface PhotoApi {
         ]
     )
     fun getPhotoDetail(
-        @AuthenticationPrincipal userId: String, // 권한 체크용
+        @AuthenticationPrincipal userId: String,
         @PathVariable photoId: String
     ): ResponseEntity<PhotoDetailResponse>
 
@@ -73,7 +71,7 @@ interface PhotoApi {
         ]
     )
     fun getDownloadUrl(
-        @AuthenticationPrincipal userId: String, // 권한 체크용
+        @AuthenticationPrincipal userId: String,
         @PathVariable photoId: String
     ): ResponseEntity<PhotoDownloadUrlResponse>
 
@@ -89,8 +87,8 @@ interface PhotoApi {
         ]
     )
     fun createAlbum(
-        @AuthenticationPrincipal userId: String, // JWT에서 추출
-        @RequestBody request: AlbumCreateRequest
+        @AuthenticationPrincipal userId: String,
+        @Valid @RequestBody request: AlbumCreateRequest
     ): ResponseEntity<AlbumResponse>
 
     @Operation(summary = "내 앨범 목록", description = "사용자의 모든 앨범 조회")
@@ -101,24 +99,56 @@ interface PhotoApi {
             ApiResponse(responseCode = "401", description = "인증 필요")
         ]
     )
-    fun getMyAlbums(
-        @AuthenticationPrincipal userId: String // JWT에서 추출
-    ): ResponseEntity<List<AlbumResponse>>
+    fun getMyAlbums(@AuthenticationPrincipal userId: String): ResponseEntity<List<AlbumResponse>>
 
     @Operation(summary = "앨범 상세 조회", description = "앨범 정보와 포함된 사진들 조회")
     @GetMapping(PhotoUris.ALBUMS_BASE + PhotoUris.ALBUM_DETAIL)
     @ApiResponses(
         value = [
-            ApiResponse(responseCode = "200", description = "조회 성공"),
+            ApiResponse(responseCode = "200", description = "조회 성功"),
             ApiResponse(responseCode = "401", description = "인증 필요"),
             ApiResponse(responseCode = "403", description = "접근 권한 없음"),
             ApiResponse(responseCode = "404", description = "앨범을 찾을 수 없음")
         ]
     )
     fun getAlbumDetail(
-        @AuthenticationPrincipal userId: String, // 권한 체크용
+        @AuthenticationPrincipal userId: String,
         @PathVariable albumId: String
     ): ResponseEntity<AlbumDetailResponse>
+
+
+    @Operation(summary = "앨범 수정", description = "앨범 이름 및 설명 수정")
+    @PutMapping(PhotoUris.ALBUMS_BASE + PhotoUris.ALBUM_DETAIL)
+    @ApiResponses(
+        value = [
+            ApiResponse(responseCode = "200", description = "앨범 수정 성공"),
+            ApiResponse(responseCode = "401", description = "인증 필요"),
+            ApiResponse(responseCode = "404", description = "앨범을 찾을 수 없음"),
+            ApiResponse(responseCode = "403", description = "앨범 수정 권한 없음"),
+            ApiResponse(responseCode = "400", description = "기본 앨범은 수정할 수 없음")
+        ]
+    )
+    fun updateAlbum(
+        @AuthenticationPrincipal userId: String,
+        @PathVariable albumId: String,
+        @Valid @RequestBody request: AlbumUpdateRequest
+    ): ResponseEntity<AlbumResponse>
+
+    @Operation(summary = "앨범 삭제", description = "앨범 및 포함된 모든 사진 삭제")
+    @DeleteMapping(PhotoUris.ALBUMS_BASE + PhotoUris.ALBUM_DETAIL)
+    @ApiResponses(
+        value = [
+            ApiResponse(responseCode = "200", description = "앨범 삭제 성공"),
+            ApiResponse(responseCode = "401", description = "인증 필요"),
+            ApiResponse(responseCode = "404", description = "앨범을 찾을 수 없음"),
+            ApiResponse(responseCode = "403", description = "앨범 삭제 권한 없음"),
+            ApiResponse(responseCode = "400", description = "기본 앨범은 삭제할 수 없음")
+        ]
+    )
+    fun deleteAlbum(
+        @AuthenticationPrincipal userId: String,
+        @PathVariable albumId: String
+    ): ResponseEntity<AlbumDeleteResponse>
 
     @Operation(summary = "앨범에 사진 추가", description = "기존 앨범에 사진들 추가")
     @PostMapping(PhotoUris.ALBUMS_BASE + PhotoUris.ALBUM_ADD_PHOTOS)
@@ -132,10 +162,27 @@ interface PhotoApi {
         ]
     )
     fun addPhotosToAlbum(
-        @AuthenticationPrincipal userId: String, // 권한 체크용
+        @AuthenticationPrincipal userId: String,
         @PathVariable albumId: String,
-        @RequestBody request: AlbumAddPhotosRequest
+        @Valid @RequestBody request: AlbumAddPhotosRequest
     ): ResponseEntity<AlbumDetailResponse>
+
+    @Operation(summary = "앨범에서 사진 제거", description = "앨범에서 선택한 사진들 제거 (사진 자체는 삭제되지 않음)")
+    @DeleteMapping(PhotoUris.ALBUMS_BASE + PhotoUris.ALBUM_REMOVE_PHOTOS)
+    @ApiResponses(
+        value = [
+            ApiResponse(responseCode = "200", description = "사진 제거 성공"),
+            ApiResponse(responseCode = "401", description = "인증 필요"),
+            ApiResponse(responseCode = "404", description = "앨범을 찾을 수 없음"),
+            ApiResponse(responseCode = "403", description = "앨범 접근 권한 없음"),
+            ApiResponse(responseCode = "400", description = "기본 앨범에서는 사진을 제거할 수 없음")
+        ]
+    )
+    fun removePhotosFromAlbum(
+        @AuthenticationPrincipal userId: String,
+        @PathVariable albumId: String,
+        @Valid @RequestBody request: AlbumRemovePhotosRequest
+    ): ResponseEntity<Map<String, String>>
 
     /**
      * Photo API URI 상수
@@ -152,5 +199,6 @@ interface PhotoApi {
         const val MY_ALBUMS = "/my"
         const val ALBUM_DETAIL = "/{albumId}"
         const val ALBUM_ADD_PHOTOS = "/{albumId}/photos"
+        const val ALBUM_REMOVE_PHOTOS = "/{albumId}/photos/remove"
     }
 }

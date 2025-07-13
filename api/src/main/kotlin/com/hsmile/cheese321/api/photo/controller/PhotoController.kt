@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.multipart.MultipartFile
+import jakarta.validation.Valid
 
 /**
  * 사진 및 앨범 관리
@@ -98,5 +99,40 @@ class PhotoController(
     ): ResponseEntity<AlbumDetailResponse> {
         val album = photoService.addPhotosToAlbum(albumId, request, userId)
         return ResponseEntity.ok(album)
+    }
+
+    /**
+     * 앨범 수정
+     */
+    override fun updateAlbum(
+        @AuthenticationPrincipal userId: String,
+        albumId: String,
+        request: AlbumUpdateRequest
+    ): ResponseEntity<AlbumResponse> {
+        val album = photoService.updateAlbum(userId, albumId, request)
+        return ResponseEntity.ok(album)
+    }
+
+    /**
+     * 앨범 삭제
+     */
+    override fun deleteAlbum(
+        @AuthenticationPrincipal userId: String,
+        albumId: String
+    ): ResponseEntity<AlbumDeleteResponse> {
+        val response = photoService.deleteAlbum(userId, albumId)
+        return ResponseEntity.ok(response)
+    }
+
+    /**
+     * 앨범에서 사진 제거
+     */
+    override fun removePhotosFromAlbum(
+        @AuthenticationPrincipal userId: String,
+        albumId: String,
+        request: AlbumRemovePhotosRequest
+    ): ResponseEntity<Map<String, String>> {
+        val response = photoService.removePhotosFromAlbum(userId, albumId, request)
+        return ResponseEntity.ok(response)
     }
 }

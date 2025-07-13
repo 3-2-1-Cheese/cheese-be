@@ -24,9 +24,4 @@ interface PhotoRepository : JpaRepository<Photo, String> {
      * 사용자별 특정 사진관 사진들 조회
      */
     fun findByUserIdAndPhotoBoothIdOrderByCreatedAtDesc(userId: String, photoBoothId: String): List<Photo>
-
-    // TODO: 나중에 구현할 기능들
-    // - 태그별 사진 검색
-    // - 파일 크기/타입별 필터링
-    // - 날짜 범위별 조회
 }
