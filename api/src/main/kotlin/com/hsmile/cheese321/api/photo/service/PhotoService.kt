@@ -63,7 +63,27 @@ class PhotoService(
     @Transactional(readOnly = true)
     fun getMyPhotos(userId: String): List<PhotoResponse> {
         val photos = photoRepository.findByUserIdOrderByCreatedAtDesc(userId)
-        return photos.map { it.toPhotoResponse() }
+
+        if (photos.isEmpty()) {
+            return emptyList()
+        }
+
+        // 한번에 모든 사진관 정보 조회
+        val photoBoothIds = photos.map { it.photoBoothId }.distinct()
+        val photoBooths = photoBoothRepository.findAllById(photoBoothIds)
+            .associateBy { it.id }
+
+        return photos.map { photo ->
+            val photoBoothName = photoBooths[photo.photoBoothId]?.name ?: "알 수 없는 사진관"
+
+            PhotoResponse(
+                id = photo.id,
+                originalFilename = photo.originalFilename,
+                photoBoothName = photoBoothName,
+                createdAt = photo.createdAt.toString(),
+                downloadUrl = "https://temp-download-url.com/${photo.filePath}" // TODO: 실제 URL 생성
+            )
+        }
     }
 
     /**
@@ -78,7 +98,19 @@ class PhotoService(
             throw IllegalArgumentException("사진 접근 권한이 없습니다")
         }
 
-        return photo.toPhotoDetailResponse()
+        val photoBoothName = photoBoothRepository.findById(photo.photoBoothId)
+            .map { it.name }
+            .orElse("알 수 없는 사진관")
+
+        return PhotoDetailResponse(
+            id = photo.id,
+            originalFilename = photo.originalFilename,
+            photoBoothName = photoBoothName,
+            fileSize = photo.fileSize,
+            contentType = photo.contentType,
+            createdAt = photo.createdAt.toString(),
+            downloadUrl = "https://temp-download-url.com/${photo.filePath}" // TODO: 실제 URL 생성
+        )
     }
 
     /**
@@ -110,16 +142,45 @@ class PhotoService(
         )
 
         albumRepository.save(album)
-        return album.toAlbumResponse()
+
+        return AlbumResponse(
+            id = album.id,
+            name = album.name,
+            description = album.description,
+            photoCount = 0L, // 새로 생성된 앨범은 사진 0개
+            coverImageUrl = album.coverImageUrl,
+            createdAt = album.createdAt.toString(),
+            isDefault = album.isDefault
+        )
     }
 
     /**
-     * 내 앨범 목록 조회
+     * 내 앨범 목록 조회 (N+1 해결)
      */
     @Transactional(readOnly = true)
     fun getMyAlbums(userId: String): List<AlbumResponse> {
         val albums = albumRepository.findByUserIdOrderByCreatedAtDesc(userId)
-        return albums.map { it.toAlbumResponse() }
+
+        if (albums.isEmpty()) {
+            return emptyList()
+        }
+
+        // 한번에 모든 앨범의 사진 개수 조회 (N+1 방지)
+        val albumIds = albums.map { it.id }
+        val photoCounts = albumPhotoRepository.countByAlbumIds(albumIds)
+            .associateBy { it.albumId }
+
+        return albums.map { album ->
+            AlbumResponse(
+                id = album.id,
+                name = album.name,
+                description = album.description,
+                photoCount = photoCounts[album.id]?.count ?: 0L,
+                coverImageUrl = album.coverImageUrl,
+                createdAt = album.createdAt.toString(),
+                isDefault = album.isDefault
+            )
+        }
     }
 
     /**
@@ -136,16 +197,42 @@ class PhotoService(
 
         // AlbumPhoto를 통해 사진들 조회
         val albumPhotos = albumPhotoRepository.findByAlbumIdOrderByCreatedAtDesc(albumId)
-        val photoIds = albumPhotos.map { it.photoId }
-        val photos = if (photoIds.isNotEmpty()) {
-            photoRepository.findAllById(photoIds).associateBy { it.id }
-        } else {
-            emptyMap()
+
+        if (albumPhotos.isEmpty()) {
+            return AlbumDetailResponse(
+                id = album.id,
+                name = album.name,
+                description = album.description,
+                photoCount = 0,
+                photos = emptyList(),
+                coverImageUrl = album.coverImageUrl,
+                createdAt = album.createdAt.toString(),
+                isDefault = album.isDefault
+            )
         }
+
+        val photoIds = albumPhotos.map { it.photoId }
+        val photos = photoRepository.findAllById(photoIds).associateBy { it.id }
+
+        // 사진관 정보 한번에 조회 (N+1 방지)
+        val photoBoothIds = photos.values.map { it.photoBoothId }.distinct()
+        val photoBooths = photoBoothRepository.findAllById(photoBoothIds)
+            .associateBy { it.id }
 
         // 순서대로 정렬된 사진 목록 생성
         val orderedPhotos = albumPhotos.mapNotNull { albumPhoto ->
-            photos[albumPhoto.photoId]?.toPhotoResponse()
+            val photo = photos[albumPhoto.photoId]
+            photo?.let {
+                val photoBoothName = photoBooths[it.photoBoothId]?.name ?: "알 수 없는 사진관"
+
+                PhotoResponse(
+                    id = it.id,
+                    originalFilename = it.originalFilename,
+                    photoBoothName = photoBoothName,
+                    createdAt = it.createdAt.toString(),
+                    downloadUrl = "https://temp-download-url.com/${it.filePath}"
+                )
+            }
         }
 
         return AlbumDetailResponse(
@@ -178,7 +265,18 @@ class PhotoService(
         album.updateInfo(request.name, request.description)
         albumRepository.save(album)
 
-        return album.toAlbumResponse()
+        // 사진 개수 조회
+        val photoCount = albumPhotoRepository.countByAlbumId(albumId)
+
+        return AlbumResponse(
+            id = album.id,
+            name = album.name,
+            description = album.description,
+            photoCount = photoCount,
+            coverImageUrl = album.coverImageUrl,
+            createdAt = album.createdAt.toString(),
+            isDefault = album.isDefault
+        )
     }
 
     /**
@@ -195,9 +293,6 @@ class PhotoService(
         if (album.isDefault) {
             throw IllegalArgumentException("기본 앨범은 삭제할 수 없습니다")
         }
-
-        // 앨범에 포함된 사진 개수 확인
-        val photoCount = albumPhotoRepository.countByAlbumId(albumId)
 
         // 앨범-사진 연결만 삭제 (사진 자체는 보존)
         val removedPhotoCount = albumPhotoRepository.removeAllPhotosFromAlbum(albumId)
@@ -291,66 +386,5 @@ class PhotoService(
             )
             albumPhotoRepository.save(albumPhoto)
         }
-    }
-
-    /**
-     * Photo Entity를 PhotoResponse DTO로 변환
-     */
-    private fun Photo.toPhotoResponse(): PhotoResponse {
-        val photoBoothName = try {
-            photoBoothRepository.findById(this.photoBoothId)
-                .map { it.name }
-                .orElse("알 수 없는 사진관")
-        } catch (e: Exception) {
-            "알 수 없는 사진관"
-        }
-
-        return PhotoResponse(
-            id = this.id,
-            originalFilename = this.originalFilename,
-            photoBoothName = photoBoothName,
-            createdAt = this.createdAt.toString(),
-            downloadUrl = generateDownloadUrl(this.id, this.userId)
-        )
-    }
-
-    /**
-     * Photo Entity를 PhotoDetailResponse DTO로 변환
-     */
-    private fun Photo.toPhotoDetailResponse(): PhotoDetailResponse {
-        val photoBoothName = try {
-            photoBoothRepository.findById(this.photoBoothId)
-                .map { it.name }
-                .orElse("알 수 없는 사진관")
-        } catch (e: Exception) {
-            "알 수 없는 사진관"
-        }
-
-        return PhotoDetailResponse(
-            id = this.id,
-            originalFilename = this.originalFilename,
-            photoBoothName = photoBoothName,
-            fileSize = this.fileSize,
-            contentType = this.contentType,
-            createdAt = this.createdAt.toString(),
-            downloadUrl = generateDownloadUrl(this.id, this.userId)
-        )
-    }
-
-    /**
-     * Album Entity를 AlbumResponse DTO로 변환
-     */
-    private fun Album.toAlbumResponse(): AlbumResponse {
-        val photoCount = albumPhotoRepository.countByAlbumId(this.id)
-
-        return AlbumResponse(
-            id = this.id,
-            name = this.name,
-            description = this.description,
-            photoCount = photoCount,
-            coverImageUrl = this.coverImageUrl,
-            createdAt = this.createdAt.toString(),
-            isDefault = this.isDefault
-        )
     }
 }

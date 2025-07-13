@@ -1,6 +1,7 @@
 package com.hsmile.cheese321.data.photo.repository
 
 import com.hsmile.cheese321.data.photo.entity.AlbumPhoto
+import com.hsmile.cheese321.data.photo.repository.dto.AlbumPhotoCount
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query
@@ -36,6 +37,17 @@ interface AlbumPhotoRepository : JpaRepository<AlbumPhoto, String> {
      * 특정 사진이 포함된 앨범들 조회
      */
     fun findByPhotoIdOrderByCreatedAtDesc(photoId: String): List<AlbumPhoto>
+
+    /**
+     * 여러 앨범의 사진 개수를 한번에 조회 (N+1 방지)
+     */
+    @Query("""
+        SELECT new map(ap.albumId as albumId, COUNT(ap.photoId) as count) 
+        FROM AlbumPhoto ap 
+        WHERE ap.albumId IN :albumIds 
+        GROUP BY ap.albumId
+    """)
+    fun countByAlbumIds(albumIds: List<String>): List<AlbumPhotoCount>
 
     /**
      * 특정 앨범에 이미 있는 사진 ID들을 조회
