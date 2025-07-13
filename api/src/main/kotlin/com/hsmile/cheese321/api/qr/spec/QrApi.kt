@@ -6,35 +6,51 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.http.ResponseEntity
+import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.*
+import jakarta.validation.Valid
 
 /**
- * QR API URI 상수
+ * QR URI 상수
  */
 object QrUris {
     const val BASE = "/api/v1/qr"
     const val SCAN = "/scan"
+    const val SAVE_PHOTOS = "/save-photos"
 }
 
 /**
- * QR 스캔 관련 API
+ * QR 스캔 및 사진 저장 API
  */
-@Tag(name = "QR", description = "QR 코드 스캔 API")
+@Tag(name = "QR", description = "QR 스캔 및 사진 저장 API")
 interface QrApi {
 
-    @Operation(summary = "QR 코드 스캔", description = "QR 코드를 스캔하여 사진관 정보 확인")
+    @Operation(summary = "QR 코드 스캔", description = "QR 코드를 스캔하여 사진 URL이나 사진관 정보 추출")
     @PostMapping(QrUris.BASE + QrUris.SCAN)
     @ApiResponses(
         value = [
             ApiResponse(responseCode = "200", description = "QR 스캔 성공"),
-            ApiResponse(responseCode = "400", description = "유효하지 않은 QR 코드"),
-            ApiResponse(responseCode = "404", description = "사진관을 찾을 수 없음")
+            ApiResponse(responseCode = "401", description = "인증 필요"),
+            ApiResponse(responseCode = "400", description = "잘못된 QR 데이터")
         ]
     )
-    fun scanQr(@RequestBody request: QrScanRequest): ResponseEntity<QrScanResponse>
+    fun scanQr(
+        @AuthenticationPrincipal userId: String,
+        @Valid @RequestBody request: QrScanRequest
+    ): ResponseEntity<QrScanResponse>
 
-    // TODO: 나중에 구현할 API들
-    // - QR 코드 생성 (사진관용)
-    // - QR 스캔 히스토리 조회
-    // - QR 코드 유효성 검증
+    @Operation(summary = "QR로 가져온 사진 저장", description = "QR 스캔으로 얻은 사진들을 앱에 저장")
+    @PostMapping(QrUris.BASE + QrUris.SAVE_PHOTOS)
+    @ApiResponses(
+        value = [
+            ApiResponse(responseCode = "200", description = "사진 저장 성공"),
+            ApiResponse(responseCode = "401", description = "인증 필요"),
+            ApiResponse(responseCode = "400", description = "잘못된 요청 데이터"),
+            ApiResponse(responseCode = "500", description = "사진 다운로드 실패")
+        ]
+    )
+    fun savePhotosFromQr(
+        @AuthenticationPrincipal userId: String,
+        @Valid @RequestBody request: SavePhotosFromQrRequest
+    ): ResponseEntity<SavePhotosFromQrResponse>
 }
