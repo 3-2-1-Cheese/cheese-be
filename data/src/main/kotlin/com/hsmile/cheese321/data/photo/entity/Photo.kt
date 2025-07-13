@@ -13,7 +13,7 @@ import java.util.*
 @Entity
 @Table(name = "photos")
 @EntityListeners(AuditingEntityListener::class)
-class Photo(
+open class Photo(
     @Id
     val id: String = UUID.randomUUID().toString(),
 
@@ -56,11 +56,14 @@ class Photo(
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     val createdAt: LocalDateTime = LocalDateTime.now()
-
-    // TODO: 나중에 구현할 기능들
-    // - 썸네일 이미지 경로 (thumbnailPath)
-    // - 이미지 메타데이터 (width, height, exif 등)
-    // - 태그/키워드 기능
-    // - 사진 공개/비공개 설정
-    // - 크롭된 사진인지 여부 (isCropped, originalPhotoId)
-)
+) {
+    // JPA를 위한 기본 생성자
+    protected constructor() : this(
+        userId = "",
+        photoBoothId = "",
+        filePath = "",
+        originalFilename = "",
+        fileSize = 0L,
+        contentType = ""
+    )
+}
