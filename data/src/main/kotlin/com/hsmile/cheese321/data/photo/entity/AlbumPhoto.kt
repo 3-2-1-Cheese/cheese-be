@@ -18,7 +18,7 @@ import java.util.*
     ]
 )
 @EntityListeners(AuditingEntityListener::class)
-open class AlbumPhoto(
+class AlbumPhoto(
     @Id
     val id: String = UUID.randomUUID().toString(),
 

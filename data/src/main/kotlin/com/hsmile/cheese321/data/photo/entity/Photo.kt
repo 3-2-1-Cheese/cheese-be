@@ -13,7 +13,7 @@ import java.util.*
 @Entity
 @Table(name = "photos")
 @EntityListeners(AuditingEntityListener::class)
-open class Photo(
+class Photo(
     @Id
     val id: String = UUID.randomUUID().toString(),
 
