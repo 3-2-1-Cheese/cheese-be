@@ -2,6 +2,7 @@ package com.hsmile.cheese321.api.photobooth.controller
 
 import com.hsmile.cheese321.api.photobooth.dto.PhotoBoothResponse
 import com.hsmile.cheese321.api.photobooth.dto.PhotoBoothDetailResponse
+import com.hsmile.cheese321.api.photobooth.service.PhotoBoothRecommendationService
 import com.hsmile.cheese321.api.photobooth.service.PhotoBoothService
 import com.hsmile.cheese321.api.photobooth.spec.PhotoBoothApi
 import com.hsmile.cheese321.api.user.dto.FavoriteToggleResponse
@@ -16,7 +17,8 @@ import org.springframework.web.bind.annotation.RestController
 @RestController
 class PhotoBoothController(
     private val photoBoothService: PhotoBoothService,
-    private val favoriteService: FavoriteService
+    private val favoriteService: FavoriteService,
+    private val recommendationService: PhotoBoothRecommendationService
 ) : PhotoBoothApi {
 
     /**
@@ -53,5 +55,18 @@ class PhotoBoothController(
     ): ResponseEntity<FavoriteToggleResponse> {
         val response = favoriteService.toggleFavorite(userId, id)
         return ResponseEntity.ok(response)
+    }
+
+    /**
+     * AI 기반 추천 사진관 목록
+     */
+    override suspend fun getRecommendedPhotoBooths(
+        @AuthenticationPrincipal userId: String,
+        lat: Double?,
+        lng: Double?,
+        limit: Int
+    ): ResponseEntity<List<PhotoBoothResponse>> {
+        val recommendations = recommendationService.getRecommendedPhotoBooths(userId, lat, lng, limit)
+        return ResponseEntity.ok(recommendations)
     }
 }

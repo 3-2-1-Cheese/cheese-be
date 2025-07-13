@@ -18,6 +18,7 @@ object PhotoBoothUris {
     const val BASE = "/api/v1/photobooths"
     const val DETAIL = "/{id}"
     const val FAVORITE = "/{id}/favorite"
+    const val RECOMMEND = "/recommended"
 }
 
 /**
@@ -73,4 +74,19 @@ interface PhotoBoothApi {
         @AuthenticationPrincipal userId: String,
         @PathVariable id: String
     ): ResponseEntity<FavoriteToggleResponse>
+
+    @Operation(summary = "AI 기반 추천 사진관 목록", description = "사용자 선호도를 기반으로 한 개인화 추천 사진관")
+    @GetMapping(PhotoBoothUris.BASE + PhotoBoothUris.RECOMMEND)
+    @ApiResponses(
+        value = [
+            ApiResponse(responseCode = "200", description = "추천 목록 조회 성공"),
+            ApiResponse(responseCode = "401", description = "인증 필요")
+        ]
+    )
+    suspend fun getRecommendedPhotoBooths(
+        @AuthenticationPrincipal userId: String,
+        @RequestParam(required = false) lat: Double?,
+        @RequestParam(required = false) lng: Double?,
+        @RequestParam(defaultValue = "20") limit: Int
+    ): ResponseEntity<List<PhotoBoothResponse>>
 }
