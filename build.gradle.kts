@@ -3,7 +3,7 @@ plugins {
 	kotlin("plugin.spring") version "1.9.25" apply false
 	kotlin("plugin.jpa") version "1.9.25" apply false
 	kotlin("kapt") version "1.9.25" apply false
-	id("org.springframework.boot") version "3.4.5" apply false
+	id("org.springframework.boot") version "3.3.4" apply false
 	id("io.spring.dependency-management") version "1.1.7"
 }
 
@@ -28,7 +28,7 @@ subprojects {
 	//의존성 버전 관리
 	dependencyManagement {
 		imports {
-			mavenBom("org.springframework.boot:spring-boot-dependencies:3.4.5")
+			mavenBom("org.springframework.boot:spring-boot-dependencies:3.3.4")
 		}
 		dependencies {
 			dependency("org.locationtech.jts:jts-core:1.19.0")
