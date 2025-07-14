@@ -7,6 +7,7 @@ import com.hsmile.cheese321.api.photobooth.service.PhotoBoothService
 import com.hsmile.cheese321.api.photobooth.spec.PhotoBoothApi
 import com.hsmile.cheese321.api.user.dto.FavoriteToggleResponse
 import com.hsmile.cheese321.api.user.service.FavoriteService
+import kotlinx.coroutines.runBlocking
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.RestController
@@ -60,13 +61,15 @@ class PhotoBoothController(
     /**
      * AI 기반 추천 사진관 목록
      */
-    override suspend fun getRecommendedPhotoBooths(
+    override fun getRecommendedPhotoBooths(
         @AuthenticationPrincipal userId: String,
         lat: Double?,
         lng: Double?,
         limit: Int
     ): ResponseEntity<List<PhotoBoothResponse>> {
-        val recommendations = recommendationService.getRecommendedPhotoBooths(userId, lat, lng, limit)
+        val recommendations = runBlocking {
+            recommendationService.getRecommendedPhotoBooths(userId, lat, lng, limit)
+        }
         return ResponseEntity.ok(recommendations)
     }
 }

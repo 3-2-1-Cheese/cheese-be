@@ -83,7 +83,7 @@ interface PhotoBoothApi {
             ApiResponse(responseCode = "401", description = "인증 필요")
         ]
     )
-    suspend fun getRecommendedPhotoBooths(
+    fun getRecommendedPhotoBooths(
         @AuthenticationPrincipal userId: String,
         @RequestParam(required = false) lat: Double?,
         @RequestParam(required = false) lng: Double?,
