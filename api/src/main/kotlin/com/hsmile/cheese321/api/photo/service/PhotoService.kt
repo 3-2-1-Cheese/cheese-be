@@ -126,6 +126,28 @@ class PhotoService(
     }
 
     /**
+     * 개별 사진 삭제 (영구 삭제)
+     */
+    fun deletePhoto(userId: String, photoId: String): Map<String, String> {
+        val photo = photoRepository.findById(photoId)
+            .orElseThrow { IllegalArgumentException("사진을 찾을 수 없습니다: $photoId") }
+
+        if (photo.userId != userId) {
+            throw IllegalArgumentException("사진 접근 권한이 없습니다")
+        }
+
+        // 모든 앨범에서 사진 제거
+        albumPhotoRepository.removePhotoFromAllAlbums(photoId)
+
+        // 사진 삭제
+        photoRepository.delete(photo)
+
+        // TODO: S3에서 파일 삭제
+
+        return mapOf("message" to "사진이 성공적으로 삭제되었습니다")
+    }
+
+    /**
      * 다운로드 URL 생성
      */
     @Transactional(readOnly = true)
@@ -139,6 +161,115 @@ class PhotoService(
 
         // TODO: S3 Pre-signed URL 생성 로직 구현 필요
         return "https://temp-download-url.com/${photo.filePath}"
+    }
+
+    /**
+     * 사진 일괄 삭제 (영구 삭제)
+     */
+    fun batchDeletePhotos(userId: String, request: PhotoBatchDeleteRequest): PhotoBatchDeleteResponse {
+        // 사용자 소유 사진들만 필터링
+        val allPhotos = photoRepository.findAllById(request.photoIds)
+        val ownedPhotos = allPhotos.filter { it.userId == userId }
+        val ownedPhotoIds = ownedPhotos.map { it.id }
+
+        var totalRemovedFromAlbums = 0
+
+        if (ownedPhotoIds.isNotEmpty()) {
+            // 모든 앨범에서 한번에 제거
+            totalRemovedFromAlbums = albumPhotoRepository.removePhotosFromAllAlbums(ownedPhotoIds)
+
+            // 한번에 삭제
+            photoRepository.deleteAllById(ownedPhotoIds)
+
+            // TODO: S3에서 여러 파일 한번에 삭제
+        }
+
+        return PhotoBatchDeleteResponse(
+            deletedCount = ownedPhotos.size,
+            skippedCount = request.photoIds.size - ownedPhotos.size,
+            removedFromAlbumsCount = totalRemovedFromAlbums,
+            message = "${ownedPhotos.size}개의 사진이 성공적으로 삭제되었습니다."
+        )
+    }
+
+    /**
+     * 여러 사진을 특정 앨범으로 이동
+     */
+    fun movePhotosToAlbum(userId: String, request: PhotoMoveRequest): PhotoMoveResponse {
+        // 앨범 소유권 확인
+        val album = albumRepository.findById(request.targetAlbumId)
+            .orElseThrow { IllegalArgumentException("앨범을 찾을 수 없습니다: ${request.targetAlbumId}") }
+
+        if (album.userId != userId) {
+            throw IllegalArgumentException("앨범에 대한 접근 권한이 없습니다")
+        }
+
+        // 사용자 소유 사진들만 필터링
+        val allPhotos = photoRepository.findAllById(request.photoIds)
+        val ownedPhotos = allPhotos.filter { it.userId == userId }
+        val ownedPhotoIds = ownedPhotos.map { it.id }
+
+        if (ownedPhotoIds.isEmpty()) {
+            return PhotoMoveResponse(
+                movedCount = 0,
+                skippedCount = request.photoIds.size,
+                alreadyInAlbumCount = 0,
+                message = "이동할 수 있는 사진이 없습니다."
+            )
+        }
+
+        // 이미 앨범에 있는 사진들 확인
+        val existingPhotoIds = albumPhotoRepository.findPhotoIdsByAlbumId(request.targetAlbumId)
+            .intersect(ownedPhotoIds.toSet())
+
+        // 새로 추가할 사진들
+        val newPhotoIds = ownedPhotoIds - existingPhotoIds
+
+        // 한번에 저장
+        val newAlbumPhotos = newPhotoIds.map { photoId ->
+            AlbumPhoto(albumId = request.targetAlbumId, photoId = photoId)
+        }
+
+        if (newAlbumPhotos.isNotEmpty()) {
+            albumPhotoRepository.saveAll(newAlbumPhotos)
+        }
+
+        return PhotoMoveResponse(
+            movedCount = newAlbumPhotos.size,
+            skippedCount = request.photoIds.size - ownedPhotos.size,
+            alreadyInAlbumCount = existingPhotoIds.size,
+            message = "${newAlbumPhotos.size}개의 사진이 앨범으로 이동되었습니다."
+        )
+    }
+
+    /**
+     * 앨범에서 여러 사진 일괄 제거
+     */
+    fun batchRemovePhotosFromAlbum(userId: String, albumId: String, request: AlbumPhotoBatchRemoveRequest): AlbumPhotoRemoveResponse {
+        // 앨범 소유권 확인
+        val album = albumRepository.findById(albumId)
+            .orElseThrow { IllegalArgumentException("앨범을 찾을 수 없습니다: $albumId") }
+
+        if (album.userId != userId) {
+            throw IllegalArgumentException("앨범 접근 권한이 없습니다")
+        }
+
+        if (album.isDefault) {
+            throw IllegalArgumentException("기본 앨범에서는 사진을 제거할 수 없습니다")
+        }
+
+        // 실제로 앨범에 있는 사진들만 필터링
+        val existingPhotoIds = albumPhotoRepository.findPhotoIdsByAlbumId(albumId)
+        val photosToRemove = request.photoIds.intersect(existingPhotoIds.toSet())
+
+        // [성능 최적화] 여러 사진을 한번에 제거
+        val removedCount = albumPhotoRepository.removePhotosFromAlbum(albumId, photosToRemove.toList())
+
+        return AlbumPhotoRemoveResponse(
+            removedCount = removedCount,
+            notFoundCount = request.photoIds.size - photosToRemove.size,
+            message = "${removedCount}개의 사진이 앨범에서 제거되었습니다."
+        )
     }
 
     // ===== 앨범 관련 메서드들 =====
@@ -167,7 +298,7 @@ class PhotoService(
     }
 
     /**
-     * 내 앨범 목록 조회 (N+1 해결)
+     * 내 앨범 목록 조회
      */
     @Transactional(readOnly = true)
     fun getMyAlbums(userId: String): List<AlbumResponse> {

@@ -60,6 +60,51 @@ class PhotoController(
     }
 
     /**
+     * 개별 사진 삭제
+     */
+    override fun deletePhoto(
+        @AuthenticationPrincipal userId: String,
+        @PathVariable photoId: String
+    ): ResponseEntity<Map<String, String>> {
+        val response = photoService.deletePhoto(userId, photoId)
+        return ResponseEntity.ok(response)
+    }
+
+    /**
+     * 사진 일괄 삭제
+     */
+    override fun batchDeletePhotos(
+        @AuthenticationPrincipal userId: String,
+        @Valid @RequestBody request: PhotoBatchDeleteRequest
+    ): ResponseEntity<PhotoBatchDeleteResponse> {
+        val response = photoService.batchDeletePhotos(userId, request)
+        return ResponseEntity.ok(response)
+    }
+
+    /**
+     * 사진 앨범 이동
+     */
+    override fun movePhotosToAlbum(
+        @AuthenticationPrincipal userId: String,
+        @Valid @RequestBody request: PhotoMoveRequest
+    ): ResponseEntity<PhotoMoveResponse> {
+        val response = photoService.movePhotosToAlbum(userId, request)
+        return ResponseEntity.ok(response)
+    }
+
+    /**
+     * 앨범에서 사진 일괄 제거
+     */
+    override fun batchRemovePhotosFromAlbum(
+        @AuthenticationPrincipal userId: String,
+        @PathVariable albumId: String,
+        @Valid @RequestBody request: AlbumPhotoBatchRemoveRequest
+    ): ResponseEntity<AlbumPhotoRemoveResponse> {
+        val response = photoService.batchRemovePhotosFromAlbum(userId, albumId, request)
+        return ResponseEntity.ok(response)
+    }
+
+    /**
      * 앨범 생성
      */
     override fun createAlbum(

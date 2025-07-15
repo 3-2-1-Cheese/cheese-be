@@ -2,6 +2,7 @@ package com.hsmile.cheese321.api.photo.dto
 
 import io.swagger.v3.oas.annotations.media.Schema
 import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.NotEmpty
 import jakarta.validation.constraints.Size
 
 // ===== 사진 관련 DTO =====
@@ -61,6 +62,73 @@ data class PhotoDetailResponse(
 data class PhotoDownloadUrlResponse(
     @Schema(description = "다운로드 URL")
     val downloadUrl: String
+)
+
+@Schema(description = "사진 일괄 삭제 요청")
+data class PhotoBatchDeleteRequest(
+    @Schema(description = "삭제할 사진 ID 목록", example = "[\"photo-1\", \"photo-2\", \"photo-3\"]")
+    @field:NotEmpty(message = "삭제할 사진 목록은 비어있을 수 없습니다")
+    val photoIds: List<String>
+)
+
+@Schema(description = "사진 일괄 삭제 응답")
+data class PhotoBatchDeleteResponse(
+    @Schema(description = "실제 삭제된 사진 개수", example = "3")
+    val deletedCount: Int,
+
+    @Schema(description = "권한이 없어 건너뛴 사진 개수", example = "1")
+    val skippedCount: Int,
+
+    @Schema(description = "앨범에서 제거된 총 연결 개수", example = "8")
+    val removedFromAlbumsCount: Int,
+
+    @Schema(description = "결과 메시지")
+    val message: String
+)
+
+@Schema(description = "사진 앨범 이동 요청")
+data class PhotoMoveRequest(
+    @Schema(description = "이동할 사진 ID 목록", example = "[\"photo-1\", \"photo-2\"]")
+    @field:NotEmpty(message = "이동할 사진 목록은 비어있을 수 없습니다")
+    val photoIds: List<String>,
+
+    @Schema(description = "목적지 앨범 ID", example = "album-456")
+    @field:NotBlank(message = "목적지 앨범 ID는 필수입니다")
+    val targetAlbumId: String
+)
+
+@Schema(description = "사진 앨범 이동 응답")
+data class PhotoMoveResponse(
+    @Schema(description = "실제 이동된 사진 개수", example = "2")
+    val movedCount: Int,
+
+    @Schema(description = "권한이 없어 건너뛴 사진 개수", example = "0")
+    val skippedCount: Int,
+
+    @Schema(description = "이미 앨범에 있어서 건너뛴 사진 개수", example = "1")
+    val alreadyInAlbumCount: Int,
+
+    @Schema(description = "결과 메시지")
+    val message: String
+)
+
+@Schema(description = "앨범에서 사진 일괄 제거 요청")
+data class AlbumPhotoBatchRemoveRequest(
+    @Schema(description = "제거할 사진 ID 목록", example = "[\"photo-1\", \"photo-2\"]")
+    @field:NotEmpty(message = "제거할 사진 목록은 비어있을 수 없습니다")
+    val photoIds: List<String>
+)
+
+@Schema(description = "앨범에서 사진 제거 응답")
+data class AlbumPhotoRemoveResponse(
+    @Schema(description = "실제 제거된 사진 개수", example = "2")
+    val removedCount: Int,
+
+    @Schema(description = "앨범에 없어서 건너뛴 사진 개수", example = "1")
+    val notFoundCount: Int,
+
+    @Schema(description = "결과 메시지")
+    val message: String
 )
 
 // ===== 앨범 관련 DTO =====
@@ -133,7 +201,6 @@ data class AlbumAddPhotosRequest(
     @Schema(description = "추가할 사진 ID들")
     val photoIds: List<String>
 )
-
 
 @Schema(description = "앨범 수정 요청")
 data class AlbumUpdateRequest(

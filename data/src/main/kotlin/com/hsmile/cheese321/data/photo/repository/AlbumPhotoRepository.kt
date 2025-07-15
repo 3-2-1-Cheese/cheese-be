@@ -39,7 +39,7 @@ interface AlbumPhotoRepository : JpaRepository<AlbumPhoto, String> {
     fun findByPhotoIdOrderByCreatedAtDesc(photoId: String): List<AlbumPhoto>
 
     /**
-     * 여러 앨범의 사진 개수를 한번에 조회 (N+1 방지)
+     * 여러 앨범의 사진 개수를 한번에 조회
      */
     @Query("""
         SELECT new map(ap.albumId as albumId, COUNT(ap.photoId) as count) 
@@ -75,6 +75,19 @@ interface AlbumPhotoRepository : JpaRepository<AlbumPhoto, String> {
     @Modifying
     @Query("DELETE FROM AlbumPhoto ap WHERE ap.photoId = :photoId")
     fun removePhotoFromAllAlbums(photoId: String): Int
+
+    /**
+     * 여러 사진을 모든 앨범에서 일괄 제거 (사진 일괄 삭제 시 사용)
+     */
+    @Modifying
+    @Query("DELETE FROM AlbumPhoto ap WHERE ap.photoId IN :photoIds")
+    fun removePhotosFromAllAlbums(photoIds: List<String>): Int
+
+    /**
+     * 특정 앨범에서 사진 ID들을 조회 (이동/제거 시 기존 사진 확인용)
+     */
+    @Query("SELECT ap.photoId FROM AlbumPhoto ap WHERE ap.albumId = :albumId")
+    fun findPhotoIdsByAlbumId(albumId: String): List<String>
 
     /**
      * 사용자의 앨범에 속한 사진들만 조회 (권한 체크용)

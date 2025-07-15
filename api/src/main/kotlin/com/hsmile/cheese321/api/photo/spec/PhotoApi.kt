@@ -60,6 +60,21 @@ interface PhotoApi {
         @PathVariable photoId: String
     ): ResponseEntity<PhotoDetailResponse>
 
+    @Operation(summary = "개별 사진 삭제", description = "특정 사진을 영구 삭제")
+    @DeleteMapping(PhotoUris.BASE + PhotoUris.PHOTO_DETAIL)
+    @ApiResponses(
+        value = [
+            ApiResponse(responseCode = "200", description = "삭제 성공"),
+            ApiResponse(responseCode = "401", description = "인증 필요"),
+            ApiResponse(responseCode = "403", description = "접근 권한 없음"),
+            ApiResponse(responseCode = "404", description = "사진을 찾을 수 없음")
+        ]
+    )
+    fun deletePhoto(
+        @AuthenticationPrincipal userId: String,
+        @PathVariable photoId: String
+    ): ResponseEntity<Map<String, String>>
+
     @Operation(summary = "사진 다운로드 URL", description = "사진 다운로드용 URL 생성")
     @GetMapping(PhotoUris.BASE + PhotoUris.DOWNLOAD_URL)
     @ApiResponses(
@@ -74,6 +89,38 @@ interface PhotoApi {
         @AuthenticationPrincipal userId: String,
         @PathVariable photoId: String
     ): ResponseEntity<PhotoDownloadUrlResponse>
+
+    // ===== 사진 Batch API =====
+
+    @Operation(summary = "사진 일괄 삭제", description = "여러 사진을 한번에 영구 삭제")
+    @DeleteMapping(PhotoUris.BASE + PhotoUris.BATCH_DELETE)
+    @ApiResponses(
+        value = [
+            ApiResponse(responseCode = "200", description = "삭제 완료"),
+            ApiResponse(responseCode = "400", description = "잘못된 요청 데이터"),
+            ApiResponse(responseCode = "401", description = "인증 필요")
+        ]
+    )
+    fun batchDeletePhotos(
+        @AuthenticationPrincipal userId: String,
+        @Valid @RequestBody request: PhotoBatchDeleteRequest
+    ): ResponseEntity<PhotoBatchDeleteResponse>
+
+    @Operation(summary = "사진 앨범 이동", description = "여러 사진을 다른 앨범으로 이동")
+    @PostMapping(PhotoUris.BASE + PhotoUris.MOVE_TO_ALBUM)
+    @ApiResponses(
+        value = [
+            ApiResponse(responseCode = "200", description = "이동 완료"),
+            ApiResponse(responseCode = "400", description = "잘못된 요청 데이터"),
+            ApiResponse(responseCode = "401", description = "인증 필요"),
+            ApiResponse(responseCode = "403", description = "앨범 접근 권한 없음"),
+            ApiResponse(responseCode = "404", description = "앨범을 찾을 수 없음")
+        ]
+    )
+    fun movePhotosToAlbum(
+        @AuthenticationPrincipal userId: String,
+        @Valid @RequestBody request: PhotoMoveRequest
+    ): ResponseEntity<PhotoMoveResponse>
 
     // ===== 앨범 관련 API =====
 
@@ -115,7 +162,6 @@ interface PhotoApi {
         @AuthenticationPrincipal userId: String,
         @PathVariable albumId: String
     ): ResponseEntity<AlbumDetailResponse>
-
 
     @Operation(summary = "앨범 수정", description = "앨범 이름 및 설명 수정")
     @PutMapping(PhotoUris.ALBUMS_BASE + PhotoUris.ALBUM_DETAIL)
@@ -184,6 +230,25 @@ interface PhotoApi {
         @Valid @RequestBody request: AlbumRemovePhotosRequest
     ): ResponseEntity<Map<String, String>>
 
+    // ===== 앨범 Batch API =====
+
+    @Operation(summary = "앨범에서 사진 일괄 제거", description = "앨범에서 여러 사진을 한번에 제거 (사진 자체는 삭제되지 않음)")
+    @DeleteMapping(PhotoUris.ALBUMS_BASE + PhotoUris.ALBUM_BATCH_REMOVE_PHOTOS)
+    @ApiResponses(
+        value = [
+            ApiResponse(responseCode = "200", description = "사진 제거 성공"),
+            ApiResponse(responseCode = "401", description = "인증 필요"),
+            ApiResponse(responseCode = "404", description = "앨범을 찾을 수 없음"),
+            ApiResponse(responseCode = "403", description = "앨범 접근 권한 없음"),
+            ApiResponse(responseCode = "400", description = "기본 앨범에서는 사진을 제거할 수 없음")
+        ]
+    )
+    fun batchRemovePhotosFromAlbum(
+        @AuthenticationPrincipal userId: String,
+        @PathVariable albumId: String,
+        @Valid @RequestBody request: AlbumPhotoBatchRemoveRequest
+    ): ResponseEntity<AlbumPhotoRemoveResponse>
+
     /**
      * Photo API URI 상수
      */
@@ -193,6 +258,8 @@ interface PhotoApi {
         const val MY_PHOTOS = "/my"
         const val PHOTO_DETAIL = "/{photoId}"
         const val DOWNLOAD_URL = "/{photoId}/download-url"
+        const val BATCH_DELETE = "/batch"
+        const val MOVE_TO_ALBUM = "/move-to-album"
 
         const val ALBUMS_BASE = "/api/v1/albums"
         const val ALBUMS = ""
@@ -200,5 +267,6 @@ interface PhotoApi {
         const val ALBUM_DETAIL = "/{albumId}"
         const val ALBUM_ADD_PHOTOS = "/{albumId}/photos"
         const val ALBUM_REMOVE_PHOTOS = "/{albumId}/photos/remove"
+        const val ALBUM_BATCH_REMOVE_PHOTOS = "/{albumId}/photos/batch"
     }
 }
