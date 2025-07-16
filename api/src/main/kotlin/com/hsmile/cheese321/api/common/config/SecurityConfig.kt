@@ -4,6 +4,7 @@ import com.hsmile.cheese321.api.common.security.JwtAuthenticationFilter
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Profile
+import org.springframework.http.HttpMethod
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
 import org.springframework.security.config.http.SessionCreationPolicy
@@ -11,6 +12,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter
+import org.springframework.web.cors.CorsConfigurationSource
 
 /**
  * Spring Security 설정
@@ -19,7 +21,8 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @Configuration
 @EnableWebSecurity
 class SecurityConfig(
-    private val jwtAuthenticationFilter: JwtAuthenticationFilter
+    private val jwtAuthenticationFilter: JwtAuthenticationFilter,
+    private val corsConfigurationSource: CorsConfigurationSource
 ) {
 
     /**
@@ -37,16 +40,21 @@ class SecurityConfig(
     @Profile("local", "dev")
     fun devSecurityFilterChain(http: HttpSecurity): SecurityFilterChain {
         http
+            .cors { cors ->
+                cors.configurationSource(corsConfigurationSource)
+            }
             .csrf { it.disable() }
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
             .authorizeHttpRequests { auth ->
                 auth
+                    // Preflight 요청 허용
+                    .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
                     // 인증 없이 접근 가능한 경로
                     .requestMatchers("/api/v1/auth/**").permitAll()
                     .requestMatchers("/api/v1/qr/scan").permitAll()
                     .requestMatchers("/swagger-ui/**", "/api-docs/**").permitAll()
                     .requestMatchers("/actuator/**").permitAll()
-//                    .requestMatchers("/actuator/health").permitAll()
 
                     // 사진관 관련 API (인증 필요)
                     .requestMatchers("/api/v1/photobooths/**").authenticated()
@@ -77,10 +85,16 @@ class SecurityConfig(
     @Profile("prod", "staging")
     fun prodSecurityFilterChain(http: HttpSecurity): SecurityFilterChain {
         http
+            .cors { cors ->
+                cors.configurationSource(corsConfigurationSource)
+            }
             .csrf { it.disable() }
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
             .authorizeHttpRequests { auth ->
                 auth
+                    // Preflight 요청 허용
+                    .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
                     // 인증 없이 접근 가능한 경로
                     .requestMatchers("/api/v1/auth/kakao/login").permitAll()
                     .requestMatchers("/api/v1/qr/scan").permitAll()
