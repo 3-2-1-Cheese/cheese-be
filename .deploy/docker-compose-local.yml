@@ -1,0 +1,48 @@
+services:
+  cheese321:
+    build:
+      context: ..
+      dockerfile: .deploy/Dockerfile-local
+    image: cheese321-service:local
+    container_name: cheese321-local
+    volumes:
+      - ../logs:/logs
+    ports:
+      - "8080:8080"
+    networks:
+      - cheese321_network
+    environment:
+      - SPRING_PROFILES_ACTIVE=local
+      # 로컬 DB 연결
+      - DATABASE_URL=jdbc:postgresql://cheese321-db:5432/cheese321
+      - DATABASE_USERNAME=postgres
+      - DATABASE_PASSWORD=251625
+      # JWT
+      - JWT_SECRET=Y2hlZXNlMzIxLWp3dC1zZWNyZXQta2V5LWZvci1oLXNtaWxlLXBob3RvYm9vdGgtYXBwLTIwMjUtc2VjdXJlLWtleS1mb3ItcHJvZHVjdGlvbg==
+      # AI 더미 모드 (로컬에서는 true)
+      - AI_USE_DUMMY=true
+      - AI_SERVICE_BASE_URL=http://localhost:8081
+      - AI_SERVICE_TIMEOUT=10
+    depends_on:
+      - cheese321-db
+
+  cheese321-db:
+    image: postgis/postgis:15-3.3
+    container_name: cheese321-local-db
+    environment:
+      POSTGRES_DB: cheese321
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 251625
+    volumes:
+      - postgres_local_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    networks:
+      - cheese321_network
+
+volumes:
+  postgres_local_data:
+
+networks:
+  cheese321_network:
+    driver: bridge

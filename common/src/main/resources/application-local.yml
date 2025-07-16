@@ -1,10 +1,10 @@
-# 기존 설정들...
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5433/cheese321
+    # Docker 환경에서는 환경변수로 받기
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5433/cheese321}
     driver-class-name: org.postgresql.Driver
-    username: postgres
-    password: 251625
+    username: ${DATABASE_USERNAME:postgres}
+    password: ${DATABASE_PASSWORD:251625}
 
   jpa:
     hibernate:
@@ -18,8 +18,8 @@ spring:
 # 로그 설정
 logging:
   level:
-    root: INFO
-    com.hsmile.cheese321: DEBUG
+    root: ${LOG_LEVEL_ROOT:INFO}
+    com.hsmile.cheese321: ${LOG_LEVEL_APP:DEBUG}
     org.hibernate.SQL: DEBUG
     # Security 디버깅
     org.springframework.security: DEBUG
@@ -33,18 +33,18 @@ logging:
 
 # JWT 설정
 jwt:
-  secret: "Y2hlZXNlMzIxLWp3dC1zZWNyZXQta2V5LWZvci1oLXNtaWxlLXBob3RvYm9vdGgtYXBwLTIwMjUtc2VjdXJlLWtleS1mb3ItcHJvZHVjdGlvbg=="
+  secret: ${JWT_SECRET:Y2hlZXNlMzIxLWp3dC1zZWNyZXQta2V5LWZvci1oLXNtaWxlLXBob3RvYm9vdGgtYXBwLTIwMjUtc2VjdXJlLWtleS1mb3ItcHJvZHVjdGlvbg==}
   access-token-validity: 3600000  # 1시간 (밀리초)
   refresh-token-validity: 2592000000  # 30일 (밀리초)
 
 # 추천서비스 연결
 app:
   ai-service:
-    base-url: http://localhost:8081  # AI 서비스 URL (로컬 개발 환경)
-    timeout: 10                      # API 호출 타임아웃 (초)
-    use-dummy: true                  # 더미 AI 클라이언트 사용 (개발 시 true, 추천 알고리즘 연동 시 false)
+    base-url: ${AI_SERVICE_BASE_URL:http://localhost:8081}  # AI 서비스 URL (로컬 개발 환경)
+    timeout: ${AI_SERVICE_TIMEOUT:10}                      # API 호출 타임아웃 (초)
+    use-dummy: ${AI_USE_DUMMY:true}                  # 더미 AI 클라이언트 사용 (개발 시 true, 추천 알고리즘 연동 시 false)
 
-# Actuator 설정 =====
+# Actuator 설정
 management:
   endpoints:
     web:

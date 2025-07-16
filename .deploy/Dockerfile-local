@@ -1,0 +1,14 @@
+FROM eclipse-temurin:21-jdk-jammy
+
+ARG TARGET_JAR=.deploy/cheese321-api.jar
+COPY ${TARGET_JAR} cheese321.jar
+
+EXPOSE 8080
+
+ENTRYPOINT ["java", \
+            "-jar", \
+            "-Dspring.profiles.active=local", \
+            "-Djava.net.preferIPv4Stack=true", \
+            "-Dfile.encoding=UTF-8", \
+            "-Duser.timezone=Asia/Seoul", \
+            "/cheese321.jar"]

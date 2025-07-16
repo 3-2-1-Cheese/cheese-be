@@ -1,0 +1,48 @@
+services:
+  cheese321:
+    build:
+      context: ..
+      dockerfile: .deploy/Dockerfile-prod
+    image: cheese321-service:prod
+    container_name: cheese321-prod
+    volumes:
+      - ../logs:/logs
+    ports:
+      - "8080:8080"
+    networks:
+      - cheese321_network
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      # 환경변수
+      - DATABASE_URL=${DATABASE_URL}
+      - DATABASE_USERNAME=${DATABASE_USERNAME}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD}
+      - JWT_SECRET=${JWT_SECRET}
+      # 선택적 설정
+      - LOG_LEVEL_ROOT=${LOG_LEVEL_ROOT:-INFO}
+      - AI_USE_DUMMY=${AI_USE_DUMMY:-false}
+    depends_on:
+      - cheese321-db
+    restart: unless-stopped
+
+  cheese321-db:
+    image: postgis/postgis:15-3.3
+    container_name: cheese321-prod-db
+    environment:
+      POSTGRES_DB: ${DATABASE_NAME:-cheese321}
+      POSTGRES_USER: ${DATABASE_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+    ports:
+      - "${DATABASE_PORT:-5432}:5432"
+    networks:
+      - cheese321_network
+    restart: unless-stopped
+
+volumes:
+  postgres_prod_data:
+
+networks:
+  cheese321_network:
+    driver: bridge
