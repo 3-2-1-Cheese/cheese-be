@@ -45,7 +45,8 @@ class SecurityConfig(
                     .requestMatchers("/api/v1/auth/**").permitAll()
                     .requestMatchers("/api/v1/qr/scan").permitAll()
                     .requestMatchers("/swagger-ui/**", "/api-docs/**").permitAll()
-                    .requestMatchers("/actuator/health").permitAll()
+                    .requestMatchers("/actuator/**").permitAll()
+//                    .requestMatchers("/actuator/health").permitAll()
 
                     // 사진관 관련 API (인증 필요)
                     .requestMatchers("/api/v1/photobooths/**").authenticated()

@@ -20,6 +20,9 @@ dependencies {
     runtimeOnly("io.jsonwebtoken:jjwt-impl:0.11.5")
     runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.11.5")
 
+    // Prometheus 메트릭
+    runtimeOnly("io.micrometer:micrometer-registry-prometheus")
+
     developmentOnly("org.springframework.boot:spring-boot-devtools")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.security:spring-security-test")

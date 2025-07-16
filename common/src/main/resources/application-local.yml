@@ -1,3 +1,4 @@
+# 기존 설정들...
 spring:
   datasource:
     url: jdbc:postgresql://localhost:5433/cheese321
@@ -14,14 +15,78 @@ spring:
         dialect: org.hibernate.spatial.dialect.postgis.PostgisPG10Dialect
         format_sql: true
 
+# 로그 설정
 logging:
   level:
     root: INFO
     com.hsmile.cheese321: DEBUG
     org.hibernate.SQL: DEBUG
+    # Security 디버깅
+    org.springframework.security: DEBUG
+    org.springframework.security.web: DEBUG
+    org.springframework.security.web.access: DEBUG
+    # Web 요청 디버깅
+    org.springframework.web: DEBUG
+    org.springframework.web.servlet: DEBUG
+    # JWT 필터 디버깅
+    com.hsmile.cheese321.api.common.security: TRACE
 
 # JWT 설정
 jwt:
   secret: "Y2hlZXNlMzIxLWp3dC1zZWNyZXQta2V5LWZvci1oLXNtaWxlLXBob3RvYm9vdGgtYXBwLTIwMjUtc2VjdXJlLWtleS1mb3ItcHJvZHVjdGlvbg=="
   access-token-validity: 3600000  # 1시간 (밀리초)
   refresh-token-validity: 2592000000  # 30일 (밀리초)
+
+# 추천서비스 연결
+app:
+  ai-service:
+    base-url: http://localhost:8081  # AI 서비스 URL (로컬 개발 환경)
+    timeout: 10                      # API 호출 타임아웃 (초)
+    use-dummy: true                  # 더미 AI 클라이언트 사용 (개발 시 true, 추천 알고리즘 연동 시 false)
+
+# Actuator 설정 =====
+management:
+  endpoints:
+    web:
+      exposure:
+        # 개발환경에서는 모든 엔드포인트 노출
+        include: "*"
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: always  # 헬스체크 상세 정보 표시
+      show-components: always
+    metrics:
+      enabled: true
+  health:
+    # 개별 헬스체크 활성화
+    defaults:
+      enabled: true
+    db:
+      enabled: true  # 데이터베이스 상태 체크
+    diskspace:
+      enabled: true  # 디스크 공간 체크
+  # 애플리케이션 정보
+  info:
+    env:
+      enabled: true
+    java:
+      enabled: true
+    os:
+      enabled: true
+  # 메트릭 설정
+  metrics:
+    tags:
+      application: ${spring.application.name}
+      environment: local
+    export:
+      prometheus:
+        enabled: true  # 프로메테우스 메트릭 활성화
+
+# 애플리케이션 정보 (Actuator info 엔드포인트용)
+info:
+  app:
+    name: cheese321
+    description: hsmile-cheese321
+    version: 0.0.1-SNAPSHOT
+    developer: pop
