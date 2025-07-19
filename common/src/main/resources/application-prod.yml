@@ -10,7 +10,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: update
     show-sql: false
     properties:
       hibernate:
@@ -38,7 +38,7 @@ jwt:
   access-token-validity: 3600000
   refresh-token-validity: 2592000000
 
-# AI 추천 서비스
+# 추천 서비스
 app:
   ai-service:
     base-url: http://ai-service:8081

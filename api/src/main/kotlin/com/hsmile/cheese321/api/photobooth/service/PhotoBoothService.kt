@@ -40,7 +40,8 @@ class PhotoBoothService(
         radius: Int?,
         region: String?,
         brand: String?,
-        keyword: String?
+        keyword: String?,
+        sort: String = "distance"
     ): List<PhotoBoothResponse> {
         val photoBooths = if (lat != null && lng != null) {
             val searchRadius = radius ?: 1000

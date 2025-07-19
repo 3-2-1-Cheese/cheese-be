@@ -1,13 +1,13 @@
 spring:
   datasource:
-    url: jdbc:postgresql://cheese321-db:5432/cheese321
+    url: jdbc:postgresql://localhost:5433/cheese321
     driver-class-name: org.postgresql.Driver
     username: postgres
     password: 251625
 
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: create
     show-sql: true
     properties:
       hibernate:

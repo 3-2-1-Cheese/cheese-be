@@ -7,6 +7,8 @@ import com.hsmile.cheese321.api.photobooth.dto.RatingRequest
 import com.hsmile.cheese321.api.photobooth.dto.RatingResponse
 import com.hsmile.cheese321.api.user.dto.FavoriteToggleResponse
 import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.Parameter
+import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import io.swagger.v3.oas.annotations.tags.Tag
@@ -32,7 +34,10 @@ object PhotoBoothUris {
 @Tag(name = "PhotoBooth", description = "사진관 정보 API")
 interface PhotoBoothApi {
 
-    @Operation(summary = "사진관 목록 조회", description = "위치 기반 사진관 검색 (개인화 정보 포함)")
+    @Operation(
+        summary = "사진관 목록 조회",
+        description = "위치 기반 사진관 검색 (개인화 정보 + 정렬 옵션 포함)"
+    )
     @GetMapping(PhotoBoothUris.BASE)
     @ApiResponses(
         value = [
@@ -47,7 +52,16 @@ interface PhotoBoothApi {
         @RequestParam radius: Int? = 1000,
         @RequestParam region: String?,
         @RequestParam brand: String?,
-        @RequestParam keyword: String?
+        @RequestParam keyword: String?,
+        @Parameter(
+            name = "sort",
+            description = "정렬 기준",
+            schema = Schema(
+                allowableValues = ["distance", "popularity"],
+                defaultValue = "distance"
+            )
+        )
+        @RequestParam(defaultValue = "distance") sort: String
     ): List<PhotoBoothResponse>
 
     @Operation(summary = "사진관 상세 정보", description = "특정 사진관의 상세 정보 조회 (개인화 정보 포함)")

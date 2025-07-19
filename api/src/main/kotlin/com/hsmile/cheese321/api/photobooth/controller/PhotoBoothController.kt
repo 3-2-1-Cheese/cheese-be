@@ -34,7 +34,8 @@ class PhotoBoothController(
         radius: Int?,
         region: String?,
         brand: String?,
-        keyword: String?
+        keyword: String?,
+        sort: String
     ): List<PhotoBoothResponse> {
         return photoBoothService.getPhotoBooths(
             userId = userId,
@@ -43,7 +44,8 @@ class PhotoBoothController(
             radius = radius,
             region = region,
             brand = brand,
-            keyword = keyword
+            keyword = keyword,
+            sort = sort
         )
     }
 
