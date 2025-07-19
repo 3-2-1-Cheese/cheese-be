@@ -1,0 +1,27 @@
+FROM gradle:8.5-jdk21-alpine AS build
+WORKDIR /app
+
+COPY build.gradle.kts settings.gradle.kts ./
+COPY gradle/ ./gradle/
+COPY gradlew ./
+
+COPY . .
+
+RUN gradle :api:bootJar -x test --no-daemon
+
+FROM eclipse-temurin:21-jre-jammy
+
+WORKDIR /app
+
+COPY --from=build /app/api/build/libs/*.jar cheese321.jar
+
+EXPOSE 8080
+
+ENTRYPOINT ["java", \
+            "-jar", \
+            "-Dspring.profiles.active=prod", \
+            "-Djava.net.preferIPv4Stack=true", \
+            "-Dfile.encoding=UTF-8", \
+            "-Duser.timezone=Asia/Seoul", \
+            "-XX:MaxRAMPercentage=75.0", \
+            "/app/cheese321.jar"]

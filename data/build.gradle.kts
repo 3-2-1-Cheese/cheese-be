@@ -32,6 +32,7 @@ dependencies {
     implementation("org.locationtech.jts:jts-core")
 
     runtimeOnly("org.postgresql:postgresql")
+    runtimeOnly("com.google.cloud.sql:postgres-socket-factory:1.15.0")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("com.h2database:h2")
