@@ -7,7 +7,6 @@ import jakarta.persistence.PersistenceContext
 
 /**
  * 사진관 복잡 쿼리 처리용 Repository
- * PostGIS 공간 함수를 활용한 위치 기반 검색 제공
  */
 @Repository
 class PhotoBoothQueryRepository {
@@ -16,14 +15,7 @@ class PhotoBoothQueryRepository {
     private lateinit var entityManager: EntityManager
 
     /**
-     * 다중 조건으로 사진관 검색 (현재 사용 중)
-     * @param lat 사용자 위도
-     * @param lng 사용자 경도
-     * @param radius 검색 반경(미터)
-     * @param region 지역 필터 (nullable)
-     * @param brand 브랜드 필터 (nullable)
-     * @param keyword 통합 검색 키워드 (nullable)
-     * @return 거리순 정렬된 필터링된 사진관 목록
+     * 다중 조건으로 사진관 검색
      */
     fun search(
         lat: Double,
@@ -31,7 +23,8 @@ class PhotoBoothQueryRepository {
         radius: Int,
         region: String?,
         brand: String?,
-        keyword: String?
+        keyword: String?,
+        sort: String = "distance"
     ): List<PhotoBooth> {
 
         val conditions = mutableListOf<String>()
@@ -62,20 +55,45 @@ class PhotoBoothQueryRepository {
             params["brand"] = it
         }
 
-        // 키워드 검색 (선택) - 사진관명, 브랜드명, 지역에서 검색
+        // 키워드 검색 (선택)
         keyword?.let {
             conditions.add("(p.name ILIKE :keyword OR p.brand ILIKE :keyword OR p.region ILIKE :keyword)")
             params["keyword"] = "%$it%"
+        }
+
+        // 정렬 조건 결정
+        val orderBy = when (sort) {
+            "popularity" -> {
+                """
+                ORDER BY (
+                    COALESCE(
+                        (SELECT AVG(CAST(r.rating AS decimal)) 
+                         FROM photobooth_ratings r 
+                         WHERE r.photo_booth_id = p.id), 0
+                    ) * 0.7 + 
+                    COALESCE(
+                        (SELECT COUNT(*) 
+                         FROM photobooth_ratings r 
+                         WHERE r.photo_booth_id = p.id), 0
+                    ) * 0.1
+                ) DESC, p.name
+                """.trimIndent()
+            }
+            else -> { // "distance" 또는 기타
+                """
+                ORDER BY ST_Distance(
+                    p.location, 
+                    ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)
+                )
+                """.trimIndent()
+            }
         }
 
         val sql = """
             SELECT p.* 
             FROM photobooths p 
             WHERE ${conditions.joinToString(" AND ")}
-            ORDER BY ST_Distance(
-                p.location, 
-                ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)
-            )
+            $orderBy
         """.trimIndent()
 
         val query = entityManager.createNativeQuery(sql, PhotoBooth::class.java)
@@ -88,11 +106,7 @@ class PhotoBoothQueryRepository {
     }
 
     /**
-     * 위치 정보 없이 지역/브랜드/키워드로만 사진관 검색
-     * @param region 지역 필터 (nullable)
-     * @param brand 브랜드 필터 (nullable)
-     * @param keyword 통합 검색 키워드 (nullable)
-     * @return 리뷰순 정렬된 사진관 목록
+     * 위치 정보 없이 지역/브랜드/키워드로만 사진관 검색 (별점 기반 정렬로 수정)
      */
     fun searchWithoutLocation(region: String?, brand: String?, keyword: String?): List<PhotoBooth> {
         val conditions = mutableListOf<String>()
@@ -110,7 +124,7 @@ class PhotoBoothQueryRepository {
             params["brand"] = it
         }
 
-        // 키워드 검색 - 사진관명, 브랜드명, 지역에서 검색
+        // 키워드 검색
         keyword?.let {
             conditions.add("(p.name ILIKE :keyword OR p.brand ILIKE :keyword OR p.region ILIKE :keyword)")
             params["keyword"] = "%$it%"
@@ -123,11 +137,23 @@ class PhotoBoothQueryRepository {
             ""
         }
 
+        // 별점 기반 인기순 정렬
         val sql = """
             SELECT p.* 
             FROM photobooths p 
             $whereClause
-            ORDER BY p.review_count DESC, p.name
+            ORDER BY (
+                COALESCE(
+                    (SELECT AVG(CAST(r.rating AS decimal)) 
+                     FROM photobooth_ratings r 
+                     WHERE r.photo_booth_id = p.id), 0
+                ) * 0.7 + 
+                COALESCE(
+                    (SELECT COUNT(*) 
+                     FROM photobooth_ratings r 
+                     WHERE r.photo_booth_id = p.id), 0
+                ) * 0.1
+            ) DESC, p.name
         """.trimIndent()
 
         val query = entityManager.createNativeQuery(sql, PhotoBooth::class.java)

@@ -19,9 +19,6 @@ data class PhotoBoothDetailResponse(
     @Schema(description = "상세 주소")
     val address: String,
 
-    @Schema(description = "리뷰 수")
-    val reviewCount: Int,
-
     @Schema(description = "모든 키워드 (사용자 선호 키워드는 하이라이트)")
     val keywords: List<KeywordResponse>,
 
@@ -36,7 +33,16 @@ data class PhotoBoothDetailResponse(
     val isRecommended: Boolean,
 
     @Schema(description = "사용자가 찜한 사진관 여부")
-    val isFavorite: Boolean
+    val isFavorite: Boolean,
+
+    @Schema(description = "평균 별점 (1.0 ~ 5.0, null이면 평가 없음)")
+    val averageRating: Double?,
+
+    @Schema(description = "총 별점 개수")
+    val totalRatings: Int,
+
+    @Schema(description = "현재 사용자의 별점 (1~5, null이면 미평가)")
+    val userRating: Int?
 )
 
 @Schema(description = "키워드 응답")
@@ -44,12 +50,6 @@ data class KeywordResponse(
     @Schema(description = "키워드명", example = "자연스러운보정")
     val keyword: String,
 
-    @Schema(description = "키워드 타입", example = "사진스타일")
-    val type: String,
-
     @Schema(description = "사용자 선호 키워드 여부")
     val isUserPreferred: Boolean,
-
-    @Schema(description = "관련성 점수", example = "0.85")
-    val relevanceScore: Double
 )
