@@ -1,5 +1,6 @@
 package com.hsmile.cheese321.api.common.exception
 
+import jakarta.servlet.http.HttpServletRequest
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -18,21 +19,27 @@ class GlobalExceptionHandler {
     private val logger = LoggerFactory.getLogger(GlobalExceptionHandler::class.java)
 
     /**
-     * 커스텀 인증 예외 처리
+     * 모든 인증 예외를 하나의 핸들러로 처리
      */
     @ExceptionHandler(AuthException::class)
-    fun handleAuthException(e: AuthException): ResponseEntity<ErrorResponse> {
-        logger.warn("인증 오류: {}", e.message)
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-            .body(ErrorResponse("AUTH_FAILED", e.message ?: "인증에 실패했습니다."))
+    fun handleAuthException(
+        ex: AuthException,
+        request: HttpServletRequest
+    ): ResponseEntity<ErrorResponse> {
+        logger.warn("Auth error: {} - {} | Path: {}", ex.errorCode.code, ex.message, request.requestURI)
+
+        // AuthErrorCode에 정의된 httpStatus를 직접 사용
+        return ResponseEntity
+            .status(ex.errorCode.httpStatus)
+            .body(ex.errorCode.toErrorResponse(ex.message))
     }
 
     /**
      * 카카오 API 예외 처리
      */
-    @ExceptionHandler(KakaoApiException::class)
-    fun handleKakaoApiException(e: KakaoApiException): ResponseEntity<ErrorResponse> {
-        logger.warn("카카오 API 오류: {}", e.message)
+    @ExceptionHandler(com.hsmile.cheese321.api.common.exception.KakaoApiException::class)
+    fun handleLegacyKakaoApiException(e: com.hsmile.cheese321.api.common.exception.KakaoApiException): ResponseEntity<ErrorResponse> {
+        logger.warn("Legacy Kakao API error: {}", e.message)
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
             .body(ErrorResponse("KAKAO_API_ERROR", e.message ?: "카카오 API 호출에 실패했습니다."))
     }
@@ -78,17 +85,3 @@ class GlobalExceptionHandler {
             .body(ErrorResponse("INTERNAL_SERVER_ERROR", "서버 내부 오류가 발생했습니다."))
     }
 }
-
-/**
- * 에러 응답 DTO
- */
-data class ErrorResponse(
-    val code: String,
-    val message: String
-)
-
-/**
- * 커스텀 예외 클래스들
- */
-class AuthException(message: String) : RuntimeException(message)
-class KakaoApiException(message: String) : RuntimeException(message)

@@ -75,7 +75,7 @@ interface PhotoBoothApi {
         @PathVariable id: String
     ): ResponseEntity<FavoriteToggleResponse>
 
-    @Operation(summary = "AI 기반 추천 사진관 목록", description = "사용자 선호도를 기반으로 한 개인화 추천 사진관")
+    @Operation(summary = "추천 사진관 목록", description = "사용자 선호도를 기반으로 한 개인화 추천 사진관")
     @GetMapping(PhotoBoothUris.BASE + PhotoBoothUris.RECOMMEND)
     @ApiResponses(
         value = [

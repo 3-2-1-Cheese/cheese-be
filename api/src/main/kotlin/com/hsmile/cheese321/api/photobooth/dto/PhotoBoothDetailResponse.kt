@@ -28,6 +28,7 @@ data class PhotoBoothDetailResponse(
     @Schema(description = "사진관 이미지 URL들")
     val imageUrls: List<String>,
 
+    //거리 뺴고 위도/경도 반환. 거리 계산은 프론트서
     @Schema(description = "현재 위치로부터 거리(미터)")
     val distance: Int?,
 

@@ -35,7 +35,7 @@ class PhotoBoothRecommendationService(
 ) {
 
     /**
-     * AI 기반 개인화 추천 사진관 목록
+     * 개인화 추천 사진관 목록
      */
     suspend fun getRecommendedPhotoBooths(
         userId: String,
@@ -64,7 +64,7 @@ class PhotoBoothRecommendationService(
     }
 
     /**
-     * 기존 서비스들로 AI용 사용자 프로필 생성
+     * 기존 서비스들로 추천내용 생성
      */
     private fun createUserProfileForAI(userId: String, userLat: Double?, userLng: Double?): UserProfileForAI {
         // 1. 사용자 키워드
@@ -106,7 +106,7 @@ class PhotoBoothRecommendationService(
     }
 
     /**
-     * AI 추천 결과를 기반으로 사진관 상세 정보 조합 (성능 최적화)
+     * 추천 결과를 기반으로 사진관 상세 정보 조합
      */
     private fun getPhotoBoothsByAIRecommendation(
         userId: String,
@@ -115,14 +115,14 @@ class PhotoBoothRecommendationService(
         userLng: Double?,
         limit: Int
     ): List<PhotoBoothResponse> {
-        // 1. AI가 추천한 사진관 ID들 추출
+        // 1. 추천 알고리즘 통한 사진관 ID들 추출
         val recommendedIds = aiResponse.recommendations
             .take(limit)
             .map { it.photoBoothId }
 
         if (recommendedIds.isEmpty()) return emptyList()
 
-        // 2. [성능 최적화] 추천된 사진관들만 DB에서 조회
+        // 2. 추천된 사진관들만 DB에서 조회
         val photoBooths = photoBoothRepository.findAllById(recommendedIds)
             .associateBy { it.id }
 
@@ -132,7 +132,7 @@ class PhotoBoothRecommendationService(
             .findFavoritePhotoBoothIds(userId, recommendedIds)
             .toSet()
 
-        // 4. AI 추천 순서대로 정렬하여 응답 생성
+        // 4. 추천 순서대로 정렬하여 응답 생성
         return recommendedIds.mapNotNull { photoBoothId ->
             val photoBooth = photoBooths[photoBoothId] ?: return@mapNotNull null
             val aiRecommendation = aiResponse.recommendations.find { it.photoBoothId == photoBoothId }
@@ -149,7 +149,7 @@ class PhotoBoothRecommendationService(
     }
 
     /**
-     * AI 서비스 실패 시 폴백
+     * 추천 서비스 실패 시 폴백
      */
     private fun getFallbackRecommendations(
         userId: String,
