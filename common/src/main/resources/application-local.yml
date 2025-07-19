@@ -1,10 +1,9 @@
 spring:
   datasource:
-    # Docker 환경에서는 환경변수로 받기
-    url: ${DATABASE_URL:jdbc:postgresql://localhost:5433/cheese321}
+    url: jdbc:postgresql://cheese321-db:5432/cheese321
     driver-class-name: org.postgresql.Driver
-    username: ${DATABASE_USERNAME:postgres}
-    password: ${DATABASE_PASSWORD:251625}
+    username: postgres
+    password: 251625
 
   jpa:
     hibernate:
@@ -18,8 +17,8 @@ spring:
 # 로그 설정
 logging:
   level:
-    root: ${LOG_LEVEL_ROOT:INFO}
-    com.hsmile.cheese321: ${LOG_LEVEL_APP:DEBUG}
+    root: INFO
+    com.hsmile.cheese321: DEBUG
     org.hibernate.SQL: DEBUG
     # Security 디버깅
     org.springframework.security: DEBUG
@@ -33,25 +32,24 @@ logging:
 
 # JWT 설정
 jwt:
-  secret: ${JWT_SECRET:Y2hlZXNlMzIxLWp3dC1zZWNyZXQta2V5LWZvci1oLXNtaWxlLXBob3RvYm9vdGgtYXBwLTIwMjUtc2VjdXJlLWtleS1mb3ItcHJvZHVjdGlvbg==}
+  secret: Y2hlZXNlMzIxLWp3dC1zZWNyZXQta2V5LWZvci1oLXNtaWxlLXBob3RvYm9vdGgtYXBwLTIwMjUtc2VjdXJlLWtleS1mb3ItcHJvZHVjdGlvbg==
   access-token-validity: 3600000  # 1시간 (밀리초)
   refresh-token-validity: 2592000000  # 30일 (밀리초)
 
 # 추천서비스 연결
 app:
   ai-service:
-    base-url: ${AI_SERVICE_BASE_URL:http://localhost:8081}
-    timeout: ${AI_SERVICE_TIMEOUT:10}
-    use-dummy: ${AI_USE_DUMMY:true}
+    base-url: http://localhost:8081
+    timeout: 10
+    use-dummy: true
 
   # CORS 설정 추가 (React Native용 8081 포트 포함)
   cors:
-    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:3001,http://localhost:8081,http://127.0.0.1:3000,http://127.0.0.1:8081,http://10.0.2.2:8080}
-    allowed-methods: ${CORS_ALLOWED_METHODS:GET,POST,PUT,DELETE,PATCH,OPTIONS}
-    allowed-headers: ${CORS_ALLOWED_HEADERS:*}
-    allow-credentials: ${CORS_ALLOW_CREDENTIALS:true}
-    max-age: ${CORS_MAX_AGE:3600}
-
+    allowed-origins: http://localhost:3000,http://localhost:3001,http://localhost:8081,http://127.0.0.1:3000,http://127.0.0.1:8081,http://10.0.2.2:8080
+    allowed-methods: GET,POST,PUT,DELETE,PATCH,OPTIONS
+    allowed-headers: "*"
+    allow-credentials: true
+    max-age: 3600
 
 # Actuator 설정
 management:
@@ -86,7 +84,7 @@ management:
   # 메트릭 설정
   metrics:
     tags:
-      application: ${spring.application.name}
+      application: cheese321
       environment: local
     export:
       prometheus:
