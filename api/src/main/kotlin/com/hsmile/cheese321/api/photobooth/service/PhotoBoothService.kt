@@ -1,13 +1,11 @@
-// api/src/main/kotlin/com/hsmile/cheese321/api/photobooth/service/PhotoBoothService.kt
-
 package com.hsmile.cheese321.api.photobooth.service
 
-import com.hsmile.cheese321.api.photobooth.dto.PhotoBoothResponse
-import com.hsmile.cheese321.api.photobooth.dto.PhotoBoothDetailResponse
-import com.hsmile.cheese321.api.photobooth.dto.KeywordResponse
+import com.hsmile.cheese321.api.photobooth.dto.*
 import com.hsmile.cheese321.data.photobooth.entity.PhotoBooth
 import com.hsmile.cheese321.data.photobooth.repository.PhotoBoothRepository
 import com.hsmile.cheese321.data.photobooth.repository.PhotoBoothQueryRepository
+import com.hsmile.cheese321.data.photobooth.repository.PhotoBoothRatingRepository
+import com.hsmile.cheese321.data.photobooth.repository.dto.RatingSummaryDto
 import com.hsmile.cheese321.data.photobooth.exception.PhotoBoothNotFoundException
 import com.hsmile.cheese321.data.user.repository.UserRepository
 import com.hsmile.cheese321.data.user.repository.UserFavoritePhotoBoothRepository
@@ -20,29 +18,20 @@ import kotlin.math.*
 
 /**
  * 사진관 비즈니스 로직 처리 서비스
- * PostGIS 기반 위치 검색, 거리 계산, 필터링 기능 제공
- * 개인화 기능 포함 (키워드 강조, 찜하기)
  */
 @Service
 @Transactional(readOnly = true)
 class PhotoBoothService(
     private val photoBoothRepository: PhotoBoothRepository,
     private val photoBoothQueryRepository: PhotoBoothQueryRepository,
+    private val photoBoothRatingRepository: PhotoBoothRatingRepository,
     private val userRepository: UserRepository,
     private val userFavoritePhotoBoothRepository: UserFavoritePhotoBoothRepository,
     private val objectMapper: ObjectMapper
 ) {
 
     /**
-     * 위치 기반 사진관 검색 (개인화 정보 포함)
-     * @param userId 사용자 ID (개인화를 위해)
-     * @param lat 사용자 위도 (선택)
-     * @param lng 사용자 경도 (선택)
-     * @param radius 검색 반경(미터), 기본값 1000m
-     * @param region 지역 필터 (강남역, 홍대입구역 등)
-     * @param brand 브랜드 필터 (인생네컷, 포토이즘박스 등)
-     * @param keyword 통합 검색 키워드 (사진관명/브랜드명/지역)
-     * @return 거리순 정렬된 사진관 목록 (개인화 정보 포함)
+     * 위치 기반 사진관 검색
      */
     fun getPhotoBooths(
         userId: String,
@@ -60,66 +49,75 @@ class PhotoBoothService(
             photoBoothQueryRepository.searchWithoutLocation(region, brand, keyword)
         }
 
-        // 개인화 정보를 위해 사용자 선호 키워드와 찜 목록을 미리 조회
+        if (photoBooths.isEmpty()) return emptyList()
+
+        // 개인화/평점 정보를 한번에 조회
+        val boothIds = photoBooths.map { it.id }
         val userPreferredKeywords = getUserPreferredKeywords(userId)
-        val favoriteBoothIds = userFavoritePhotoBoothRepository.findFavoritePhotoBoothIds(
-            userId,
-            photoBooths.map { it.id }
-        ).toSet()
+        val favoriteBoothIds = userFavoritePhotoBoothRepository.findFavoritePhotoBoothIds(userId, boothIds).toSet()
+
+        // DTO 방식으로 평점 정보 일괄 조회
+        val ratingSummaries = photoBoothRatingRepository.findRatingSummaries(boothIds)
+            .associateBy { it.photoBoothId }
 
         return photoBooths.map { booth ->
-            booth.toResponse(
+            val ratingSummary = ratingSummaries[booth.id]
+            // 공개 메서드 사용으로 변경
+            convertToResponse(
+                photoBooth = booth,
                 userLat = lat,
                 userLng = lng,
                 userPreferredKeywords = userPreferredKeywords,
-                isFavorite = favoriteBoothIds.contains(booth.id)
+                isFavorite = favoriteBoothIds.contains(booth.id),
+                totalRatings = ratingSummary?.totalRatings?.toInt() ?: 0
             )
         }
     }
 
     /**
-     * 사진관 상세 정보 조회 (개인화 정보 포함)
-     * @param id 사진관 고유 ID
-     * @param userId 요청한 사용자 ID (키워드 강조를 위해)
-     * @return 사진관 상세 정보
-     * @throws PhotoBoothNotFoundException 사진관을 찾을 수 없는 경우
+     * 사진관 상세 정보 조회 (개인화 정보 + 평점 포함)
      */
     fun getPhotoBoothDetail(id: String, userId: String): PhotoBoothDetailResponse {
         val photoBooth = photoBoothRepository.findByIdOrNull(id)
             ?: throw PhotoBoothNotFoundException("PhotoBooth not found with id: $id")
 
+        // 개인화/평점 정보를 각각 조회 (상세 조회의 경우 여러번 쿼리도 괜찮음)
         val userPreferredKeywords = getUserPreferredKeywords(userId)
         val isFavorite = userFavoritePhotoBoothRepository.existsByUserIdAndPhotoBoothId(userId, id)
 
-        return photoBooth.toDetailResponse(userPreferredKeywords, isFavorite)
+        // DTO 방식으로 평점 정보 조회
+        val ratingSummary = photoBoothRatingRepository.findRatingSummary(id)
+        val userRating = photoBoothRatingRepository.findByUserIdAndPhotoBoothId(userId, id)?.rating
+
+        return photoBooth.toDetailResponse(userPreferredKeywords, isFavorite, ratingSummary, userRating)
     }
 
     /**
-     * PhotoBooth Entity를 목록용 Response DTO로 변환 (개인화 정보 포함)
+     * PhotoBooth Entity를 목록용 Response DTO로 변환 (공개 메서드)
      */
-    private fun PhotoBooth.toResponse(
+    fun convertToResponse(
+        photoBooth: com.hsmile.cheese321.data.photobooth.entity.PhotoBooth,
         userLat: Double?,
         userLng: Double?,
         userPreferredKeywords: List<String>,
-        isFavorite: Boolean
+        isFavorite: Boolean,
+        totalRatings: Int
     ): PhotoBoothResponse {
         val distance = if (userLat != null && userLng != null) {
-            calculateDistance(userLat, userLng, this.location.y, this.location.x).toInt()
+            calculateDistance(userLat, userLng, photoBooth.location.y, photoBooth.location.x).toInt()
         } else 0
 
-        val imageUrlList = parseImageUrls(this.imageUrls)
-
-        // 이 사진관이 사용자의 선호 키워드를 포함하는지 여부
-        val keywords = extractKeywords(this.analysisData, userPreferredKeywords)
+        val imageUrlList = parseImageUrls(photoBooth.imageUrls)
+        val keywords = getSimpleKeywords(userPreferredKeywords)
         val isRecommended = keywords.any { it.isUserPreferred }
 
         return PhotoBoothResponse(
-            id = this.id,
-            name = this.name,
-            brand = this.brand,
-            region = this.region,
-            address = this.address,
-            reviewCount = this.reviewCount,
+            id = photoBooth.id,
+            name = photoBooth.name,
+            brand = photoBooth.brand,
+            region = photoBooth.region,
+            address = photoBooth.address,
+            reviewCount = totalRatings,
             distance = distance,
             imageUrl = imageUrlList.firstOrNull(),
             isRecommended = isRecommended,
@@ -128,15 +126,16 @@ class PhotoBoothService(
     }
 
     /**
-     * PhotoBooth Entity를 상세용 Response DTO로 변환 (개인화 정보 포함)
+     * PhotoBooth Entity를 상세용 Response DTO로 변환
      */
     private fun PhotoBooth.toDetailResponse(
         userPreferredKeywords: List<String>,
-        isFavorite: Boolean
+        isFavorite: Boolean,
+        ratingSummary: RatingSummaryDto?,
+        userRating: Int?
     ): PhotoBoothDetailResponse {
-        val keywords = extractKeywords(this.analysisData, userPreferredKeywords)
+        val keywords = getSimpleKeywords(userPreferredKeywords)
         val imageUrlList = parseImageUrls(this.imageUrls)
-
         val isRecommended = keywords.any { it.isUserPreferred }
 
         return PhotoBoothDetailResponse(
@@ -145,13 +144,35 @@ class PhotoBoothService(
             brand = this.brand,
             region = this.region,
             address = this.address,
-            reviewCount = this.reviewCount,
             keywords = keywords,
             imageUrls = imageUrlList,
             distance = null,
             isRecommended = isRecommended,
-            isFavorite = isFavorite
+            isFavorite = isFavorite,
+            averageRating = ratingSummary?.averageRating,
+            totalRatings = ratingSummary?.totalRatings?.toInt() ?: 0,
+            userRating = userRating
         )
+    }
+
+    /**
+     * 간소화된 키워드 생성 (추천 서버 연동 전까지 임시)
+     */
+    private fun getSimpleKeywords(userPreferredKeywords: List<String>): List<KeywordResponse> {
+        val defaultKeywords = listOf(
+            "자연스러운보정",
+            "소품다양",
+            "빈티지",
+            "화사한톤",
+            "친절함"
+        )
+
+        return defaultKeywords.map { keyword ->
+            KeywordResponse(
+                keyword = keyword,
+                isUserPreferred = userPreferredKeywords.contains(keyword)
+            )
+        }
     }
 
     /**
@@ -184,8 +205,6 @@ class PhotoBoothService(
 
     /**
      * JSONB 이미지 URL 문자열을 List로 파싱
-     * @param imageUrls JSONB 문자열 (예: "[\"url1\", \"url2\"]")
-     * @return 이미지 URL 리스트
      */
     private fun parseImageUrls(imageUrls: String?): List<String> {
         if (imageUrls.isNullOrBlank()) {
@@ -202,7 +221,6 @@ class PhotoBoothService(
 
     /**
      * 두 지점 간 거리 계산 (하버사인 공식)
-     * @return 거리(미터)
      */
     private fun calculateDistance(lat1: Double, lng1: Double, lat2: Double, lng2: Double): Double {
         val earthRadiusM = 6371000.0
@@ -216,53 +234,5 @@ class PhotoBoothService(
 
         val c = 2 * atan2(sqrt(a), sqrt(1 - a))
         return earthRadiusM * c
-    }
-
-    /**
-     * AI 분석 데이터에서 키워드 추출 및 사용자 선호 키워드와 비교
-     * TODO: AI팀 데이터 구조 확정 후 구현
-     */
-    private fun extractKeywords(analysisData: String?, userKeywords: List<String>): List<KeywordResponse> {
-        if (analysisData.isNullOrBlank()) {
-            return getDefaultKeywords(userKeywords)
-        }
-
-        // TODO: AI 분석 데이터 파싱 로직 구현
-        // 현재는 더미 데이터로 테스트
-        val photoBoothKeywords = listOf(
-            "자연스러운보정" to "사진스타일",
-            "하이앵글" to "촬영스타일",
-            "소품다양" to "소품",
-            "빈티지" to "분위기",
-            "화사한톤" to "사진스타일"
-        )
-
-        return photoBoothKeywords.map { (keyword, type) ->
-            KeywordResponse(
-                keyword = keyword,
-                type = type,
-                isUserPreferred = userKeywords.contains(keyword),
-                relevanceScore = if (userKeywords.contains(keyword)) 0.95 else 0.75
-            )
-        }
-    }
-
-    /**
-     * 기본 키워드 반환 (분석 데이터가 없을 때)
-     */
-    private fun getDefaultKeywords(userKeywords: List<String>): List<KeywordResponse> {
-        val defaultKeywords = listOf(
-            "자연스러운보정" to "사진스타일",
-            "소품다양" to "소품"
-        )
-
-        return defaultKeywords.map { (keyword, type) ->
-            KeywordResponse(
-                keyword = keyword,
-                type = type,
-                isUserPreferred = userKeywords.contains(keyword),
-                relevanceScore = 0.70
-            )
-        }
     }
 }
