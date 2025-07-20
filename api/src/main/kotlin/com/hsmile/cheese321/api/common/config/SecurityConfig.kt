@@ -98,7 +98,8 @@ class SecurityConfig(
                     // 인증 없이 접근 가능한 경로
                     .requestMatchers("/api/v1/auth/kakao/login").permitAll()
                     .requestMatchers("/api/v1/qr/scan").permitAll()
-                    .requestMatchers("/actuator/health").permitAll()
+                    .requestMatchers("/swagger-ui/**", "/api-docs/**").permitAll()
+                    .requestMatchers("/actuator/**").permitAll()
 
                     // 모든 기능적 API는 인증 필요
                     .requestMatchers("/api/v1/photobooths/**").authenticated()
