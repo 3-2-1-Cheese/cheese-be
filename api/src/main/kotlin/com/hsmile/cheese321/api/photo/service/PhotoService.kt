@@ -1,5 +1,6 @@
 package com.hsmile.cheese321.api.photo.service
 
+import com.hsmile.cheese321.api.common.file.FileStorageService
 import com.hsmile.cheese321.api.photo.dto.*
 import com.hsmile.cheese321.api.user.service.VisitHistoryService
 import com.hsmile.cheese321.data.photo.entity.Photo
@@ -24,7 +25,8 @@ class PhotoService(
     private val albumRepository: AlbumRepository,
     private val albumPhotoRepository: AlbumPhotoRepository,
     private val photoBoothRepository: PhotoBoothRepository,
-    private val visitHistoryService: VisitHistoryService
+    private val visitHistoryService: VisitHistoryService,
+    private val fileStorageService: FileStorageService
 ) {
 
     // ===== 사진 관련 메서드들 =====
@@ -33,18 +35,23 @@ class PhotoService(
      * 사진 업로드
      */
     fun uploadPhoto(userId: String, photoBoothId: String, file: MultipartFile): PhotoUploadResponse {
-        // TODO: S3 업로드 로직 구현 필요
         val photoId = UUID.randomUUID().toString()
-        val filePath = "temp/path/${photoId}_${file.originalFilename}"
+
+        // GCS에 파일 업로드
+        val uploadResult = fileStorageService.uploadPhoto(file, userId, photoId)
+
+        if (!uploadResult.success) {
+            throw RuntimeException("파일 업로드 실패: ${uploadResult.error}")
+        }
 
         val photo = Photo(
             id = photoId,
             userId = userId,
             photoBoothId = photoBoothId,
-            filePath = filePath,
+            filePath = uploadResult.filePath,
             originalFilename = file.originalFilename ?: "unknown",
-            fileSize = file.size,
-            contentType = file.contentType ?: "image/jpeg"
+            fileSize = uploadResult.fileSize,
+            contentType = uploadResult.contentType
         )
 
         photoRepository.save(photo)
@@ -54,20 +61,34 @@ class PhotoService(
         addPhotoToAlbum(defaultAlbum.id, photoId)
 
         // 방문 기록 추가
-        // 방문 기록 실패해도 사진 업로드는 성공으로 처리
         try {
             visitHistoryService.recordVisit(userId, photoBoothId)
         } catch (e: Exception) {
-            // 방문 기록 실패는 로그만 남기고 계속 진행
-            // TODO: 실제 운영 시 로깅 시스템 사용
-            println("방문 기록 호출 실패 - userId: $userId, photoBoothId: $photoBoothId")
+            println("방문 기록 실패 - userId: $userId, photoBoothId: $photoBoothId")
         }
 
         return PhotoUploadResponse(
             photoId = photoId,
-            downloadUrl = generateDownloadUrl(photoId, userId)
+            downloadUrl = uploadResult.publicUrl
         )
     }
+
+    /**
+     * 다운로드 URL 생성
+     */
+    @Transactional(readOnly = true)
+    fun generateDownloadUrl(photoId: String, userId: String): String {
+        val photo = photoRepository.findById(photoId)
+            .orElseThrow { IllegalArgumentException("사진을 찾을 수 없습니다: $photoId") }
+
+        if (photo.userId != userId) {
+            throw IllegalArgumentException("사진 접근 권한이 없습니다")
+        }
+
+        return fileStorageService.generateDownloadUrl(photo.filePath, userId)
+    }
+
+
 
     /**
      * 내 사진 목록 조회
@@ -139,35 +160,23 @@ class PhotoService(
         // 모든 앨범에서 사진 제거
         albumPhotoRepository.removePhotoFromAllAlbums(photoId)
 
-        // 사진 삭제
-        photoRepository.delete(photo)
+        // GCS에서 파일 삭제 (실패해도 DB는 삭제)
+        try {
+            fileStorageService.deleteFile(photo.filePath, userId)
+        } catch (e: Exception) {
+            println("GCS 파일 삭제 실패: ${photo.filePath}")
+        }
 
-        // TODO: S3에서 파일 삭제
+        // DB에서 사진 삭제
+        photoRepository.delete(photo)
 
         return mapOf("message" to "사진이 성공적으로 삭제되었습니다")
     }
 
     /**
-     * 다운로드 URL 생성
-     */
-    @Transactional(readOnly = true)
-    fun generateDownloadUrl(photoId: String, userId: String): String {
-        val photo = photoRepository.findById(photoId)
-            .orElseThrow { IllegalArgumentException("사진을 찾을 수 없습니다: $photoId") }
-
-        if (photo.userId != userId) {
-            throw IllegalArgumentException("사진 접근 권한이 없습니다")
-        }
-
-        // TODO: S3 Pre-signed URL 생성 로직 구현 필요
-        return "https://temp-download-url.com/${photo.filePath}"
-    }
-
-    /**
      * 사진 일괄 삭제 (영구 삭제)
      */
-    fun batchDeletePhotos(userId: String, request: PhotoBatchDeleteRequest): PhotoBatchDeleteResponse {
-        // 사용자 소유 사진들만 필터링
+    fun deletePhotos(userId: String, request: PhotoBatchDeleteRequest): PhotoBatchDeleteResponse {
         val allPhotos = photoRepository.findAllById(request.photoIds)
         val ownedPhotos = allPhotos.filter { it.userId == userId }
         val ownedPhotoIds = ownedPhotos.map { it.id }
@@ -175,13 +184,22 @@ class PhotoService(
         var totalRemovedFromAlbums = 0
 
         if (ownedPhotoIds.isNotEmpty()) {
-            // 모든 앨범에서 한번에 제거
+            // 모든 앨범에서 제거
             totalRemovedFromAlbums = albumPhotoRepository.removePhotosFromAllAlbums(ownedPhotoIds)
 
-            // 한번에 삭제
-            photoRepository.deleteAllById(ownedPhotoIds)
+            // GCS에서 일괄 삭제
+            val filePaths = ownedPhotos.map { it.filePath }
+            try {
+                val deleteResult = fileStorageService.deleteFiles(filePaths, userId)
+                if (deleteResult.failedCount > 0) {
+                    println("일부 GCS 파일 삭제 실패: ${deleteResult.failedFiles}")
+                }
+            } catch (e: Exception) {
+                println("GCS 일괄 삭제 실패: ${e.message}")
+            }
 
-            // TODO: S3에서 여러 파일 한번에 삭제
+            // DB에서 삭제
+            photoRepository.deleteAllById(ownedPhotoIds)
         }
 
         return PhotoBatchDeleteResponse(
@@ -190,6 +208,38 @@ class PhotoService(
             removedFromAlbumsCount = totalRemovedFromAlbums,
             message = "${ownedPhotos.size}개의 사진이 성공적으로 삭제되었습니다."
         )
+    }
+
+    /**
+     * QR에서 가져온 사진 저장 (URL에서 다운로드)
+     */
+    fun savePhotoFromUrl(userId: String, photoBoothId: String, imageUrl: String, originalFilename: String): String {
+        val photoId = UUID.randomUUID().toString()
+
+        // URL에서 이미지 다운로드하여 GCS에 업로드
+        val uploadResult = fileStorageService.downloadAndUpload(imageUrl, userId, photoId, originalFilename)
+
+        if (!uploadResult.success) {
+            throw RuntimeException("QR 사진 저장 실패: ${uploadResult.error}")
+        }
+
+        val photo = Photo(
+            id = photoId,
+            userId = userId,
+            photoBoothId = photoBoothId,
+            filePath = uploadResult.filePath,
+            originalFilename = originalFilename,
+            fileSize = uploadResult.fileSize,
+            contentType = uploadResult.contentType
+        )
+
+        photoRepository.save(photo)
+
+        // 기본 앨범에도 자동 추가
+        val defaultAlbum = getOrCreateDefaultAlbum(userId)
+        addPhotoToAlbum(defaultAlbum.id, photoId)
+
+        return photoId  // QrService에서 사용할 수 있도록 photoId 반환
     }
 
     /**
