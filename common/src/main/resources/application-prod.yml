@@ -23,6 +23,13 @@ spring:
       max-file-size: 10MB
       max-request-size: 20MB
 
+  cloud:
+    gcp:
+      project-id: cheese321-demo
+      storage:
+        bucket: "TBD"  #TODO: 버킷 생성 후 수정
+        auto-create-bucket: false  # 버킷 자동 생성 안 함
+
 # 로그 설정
 logging:
   level:
@@ -45,6 +52,12 @@ app:
     base-url: http://ai-service:8081
     timeout: 30
     use-dummy: true
+
+  # TODO: 인프라팀 GCS 버킷 생성 완료 후 설정 변경
+  gcs:
+    enabled: false  # 임시 더미 모드 (인프라 준비되면 true)
+    bucket-name: "TBD"  # 실제 버킷명으로 변경 필요
+    project-id: cheese321-demo
 
 # 서버 설정
 server:

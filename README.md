@@ -1,8 +1,6 @@
-# 🧀 Cheese321 API Server
+# Cheese321 API Server
 
-H-Smile 사진관 추천 서비스 백엔드 API
-
-## 🚀 빠른 시작
+## 로컬 실행
 
 ### 1. 프로젝트 클론
 ```bash
@@ -12,47 +10,41 @@ cd cheese321
 
 ### 2. 데이터베이스 실행
 ```bash
-# PostgreSQL + PostGIS 실행
-docker-compose up -d
-
-# 실행 확인
-docker ps
+docker-compose -f .deploy/docker-compose-local.yml up -d cheese321-db
 ```
 
 ### 3. 애플리케이션 실행
 ```bash
-# IDE에서 ApiApplication.kt 실행
-# 또는 Gradle로:
 ./gradlew :api:bootRun
 ```
 
 ### 4. 확인
-- **API 서버**: http://localhost:8080
-- **API 문서**: http://localhost:8080/swagger-ui.html
-- **헬스체크**: http://localhost:8080/actuator/health
+- API 서버: http://localhost:8080
+- API 문서: http://localhost:8080/swagger-ui/index.html
+- 헬스체크: http://localhost:8080/actuator/health
 
-## 🛠️ 개발 환경
+## Docker로 전체 실행
 
-- **Java 21**
-- **Spring Boot 3.3.4**
-- **PostgreSQL + PostGIS** (Docker)
-- **JWT 인증**
-
-## 배포
-
-**로컬 Docker 테스트:**
+### 1. JAR 빌드
 ```bash
-# 1. JAR 빌드
-./gradlew :api:build
+./gradlew :api:bootJar
 cp api/build/libs/api-0.0.1-SNAPSHOT.jar .deploy/cheese321-api.jar
-# 주의: 로컬 서버 포트 충돌 주의
-
-# 2. Docker 실행
-cd .deploy
-cp .env.local .env
-# 필요시 .env 파일 수정 (DB 포트 등)
-docker-compose -f docker-compose-local.yml up -d
 ```
 
-**운영 배포:**
-[.deploy/README.md] 참조
+### 2. Docker Compose 실행
+```bash
+docker-compose -f .deploy/docker-compose-local.yml up -d
+```
+
+## 운영 환경
+
+### 배포된 서버
+- API 서버: https://cheese321-backend-189210153639.asia-northeast3.run.app
+- API 문서: https://cheese321-backend-189210153639.asia-northeast3.run.app/swagger-ui/index.html
+- 헬스체크: https://cheese321-backend-189210153639.asia-northeast3.run.app/actuator/health
+
+### 자동 배포
+- `prod` 브랜치에 푸시하면 자동으로 GCP Cloud Run에 배포됩니다
+- GitHub Actions를 통해 빌드 및 배포가 자동 실행됩니다
+
+

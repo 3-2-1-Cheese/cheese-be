@@ -77,7 +77,7 @@ class PhotoController(
         @AuthenticationPrincipal userId: String,
         @Valid @RequestBody request: PhotoBatchDeleteRequest
     ): ResponseEntity<PhotoBatchDeleteResponse> {
-        val response = photoService.batchDeletePhotos(userId, request)
+        val response = photoService.deletePhotos(userId, request)
         return ResponseEntity.ok(response)
     }
 
