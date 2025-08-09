@@ -1,6 +1,7 @@
 package com.hsmile.cheese321.api.common.file
 
 import com.google.cloud.storage.*
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import org.springframework.web.reactive.function.client.WebClient
@@ -12,14 +13,20 @@ import java.util.*
 import java.util.concurrent.TimeUnit
 
 /**
- * GCS 파일 저장 서비스
+ * 파일 저장 서비스 - GCS 연동 (현재 더미 모드)
+ *
+ * TODO: 인프라팀 GCS 버킷 생성 완료 후 실제 연동
+ * - app.gcs.enabled: false -> true 변경
+ * - 더미 관련 메서드들 제거 또는 @Deprecated 처리
  */
 @Service
 class FileStorageService(
-    private val storage: Storage,  // Spring Cloud GCP 주입
+    @Autowired(required = false) private val storage: Storage?,  // required = false 추가
     private val webClientBuilder: WebClient.Builder,
     @Value("\${app.gcs.bucket-name}")
-    private val bucketName: String
+    private val bucketName: String,
+    @Value("\${app.gcs.enabled:false}")
+    private val gcsEnabled: Boolean  // TODO: 인프라 준비되면 true로 변경
 ) {
 
     private val webClient = webClientBuilder.build()
@@ -32,9 +39,16 @@ class FileStorageService(
     }
 
     /**
-     * MultipartFile을 GCS에 업로드 (직접 업로드용)
+     * MultipartFile을 GCS에 업로드
+     * TODO: 현재 더미 모드, GCS 버킷 준비되면 실제 업로드로 전환
      */
     fun uploadPhoto(file: MultipartFile, userId: String, photoId: String): FileUploadResult {
+        // TODO: 인프라팀 작업 완료 후 이 if문 제거
+        if (!gcsEnabled || storage == null) {
+            println("GCS 비활성화 상태, 더미 응답 반환")
+            return createDummyResult(photoId, file)
+        }
+
         validateImageFile(file)
 
         val filePath = generatePhotoPath(userId, photoId, file.originalFilename)
@@ -60,15 +74,20 @@ class FileStorageService(
     }
 
     /**
-     * URL에서 이미지를 다운로드하여 GCS에 업로드 (QR 사진 가져오기용)
+     * URL에서 이미지를 다운로드하여 GCS에 업로드
+     * TODO: 현재 더미 모드, QR 사진 저장 시 실제 GCS 업로드로 전환 필요
      */
     fun downloadAndUpload(imageUrl: String, userId: String, photoId: String, originalFilename: String): FileUploadResult {
+        // TODO: 인프라팀 작업 완료 후 이 if문 제거
+        if (!gcsEnabled || storage == null) {
+            println("QR 사진 저장 - 더미 응답 반환")
+            return createDummyResult(photoId, originalFilename)
+        }
+
         return try {
-            // URL에서 이미지 다운로드
             val imageBytes = downloadImageFromUrl(imageUrl)
             val contentType = detectContentType(imageBytes, originalFilename)
 
-            // 파일 크기 검증
             if (imageBytes.size > MAX_FILE_SIZE) {
                 return FileUploadResult(
                     success = false,
@@ -97,13 +116,16 @@ class FileStorageService(
     }
 
     /**
-     * Pre-signed URL 생성 (다운로드용, 1시간 유효)
+     * Pre-signed URL 생성
      */
     fun generateDownloadUrl(filePath: String, userId: String): String {
+        if (!gcsEnabled || storage == null) {
+            return "https://example.com/dummy-download-url"
+        }
+
         val blobId = BlobId.of(bucketName, filePath)
         val blob = storage.get(blobId) ?: throw FileNotFoundException("파일을 찾을 수 없습니다: $filePath")
 
-        // 파일 소유권 확인
         val fileUserId = blob.metadata?.get("userId")
         if (fileUserId != userId) {
             throw FileAccessDeniedException("파일 접근 권한이 없습니다")
@@ -116,11 +138,14 @@ class FileStorageService(
      * 파일 삭제
      */
     fun deleteFile(filePath: String, userId: String): Boolean {
+        if (!gcsEnabled || storage == null) {
+            return true  // 더미에서는 항상 성공
+        }
+
         return try {
             val blobId = BlobId.of(bucketName, filePath)
             val blob = storage.get(blobId) ?: return false
 
-            // 파일 소유권 확인
             val fileUserId = blob.metadata?.get("userId")
             if (fileUserId != userId) {
                 throw FileAccessDeniedException("파일 삭제 권한이 없습니다")
@@ -133,9 +158,18 @@ class FileStorageService(
     }
 
     /**
-     * 여러 파일 일괄 삭제 - GCS 일괄 삭제 API 사용
+     * 여러 파일 일괄 삭제
      */
     fun deleteFiles(filePaths: List<String>, userId: String): BatchDeleteResult {
+        if (!gcsEnabled || storage == null) {
+            return BatchDeleteResult(
+                deletedCount = filePaths.size,
+                failedCount = 0,
+                deletedFiles = filePaths,
+                failedFiles = emptyList()
+            )
+        }
+
         if (filePaths.isEmpty()) {
             return BatchDeleteResult(0, 0, emptyList(), emptyList())
         }
@@ -143,7 +177,6 @@ class FileStorageService(
         val blobIds = filePaths.map { BlobId.of(bucketName, it) }
 
         return try {
-            // 파일 정보를 한번에 가져와서 권한 확인
             val blobs = storage.get(blobIds)
             val validBlobIds = mutableListOf<BlobId>()
             val invalidFiles = mutableListOf<String>()
@@ -157,7 +190,6 @@ class FileStorageService(
                 }
             }
 
-            // 한번의 API 호출로 일괄 삭제
             val deleteResults = if (validBlobIds.isNotEmpty()) {
                 storage.delete(validBlobIds)
             } else {
@@ -175,7 +207,6 @@ class FileStorageService(
                 }
             }
 
-            // 권한 없는 파일들도 failed에 추가
             failedFiles.addAll(invalidFiles)
 
             BatchDeleteResult(
@@ -192,6 +223,40 @@ class FileStorageService(
                 failedFiles = filePaths
             )
         }
+    }
+
+    // ===== TODO: 인프라 준비되면 제거할 더미 메서드들 =====
+
+    /**
+     * @deprecated 더미 모드용, GCS 연결 후 제거 예정
+     */
+    private fun createDummyResult(photoId: String, file: MultipartFile): FileUploadResult {
+        val dummyPath = "dummy/photos/${photoId}_${file.originalFilename}"
+        println("가짜 파일 업로드: ${file.originalFilename}")
+        return FileUploadResult(
+            success = true,
+            filePath = dummyPath,
+            fileSize = file.size,
+            contentType = file.contentType ?: "image/jpeg",
+            gsUrl = "gs://dummy-bucket/$dummyPath",
+            publicUrl = "https://example.com/dummy-photo.jpg"
+        )
+    }
+
+    /**
+     * @deprecated 더미 모드용, GCS 연결 후 제거 예정
+     */
+    private fun createDummyResult(photoId: String, originalFilename: String): FileUploadResult {
+        val dummyPath = "dummy/qr-photos/${photoId}_${originalFilename}"
+        println("🔥 [DUMMY] 가짜 QR 사진 저장: $originalFilename")
+        return FileUploadResult(
+            success = true,
+            filePath = dummyPath,
+            fileSize = 1024L,
+            contentType = "image/jpeg",
+            gsUrl = "gs://dummy-bucket/$dummyPath",
+            publicUrl = "https://example.com/dummy-qr-photo.jpg"
+        )
     }
 
     // ===== Private 메서드들 =====
